@@ -1,0 +1,28 @@
+[package]
+name = "vfbreader"
+version = "0.1.0"
+license = "GPL-3.0-linking-source-exception"
+authors = ["Jens Kutilek <webmail@kutilek.de>"]
+repository = "https://github.com/jenskutilek/vfbLib-rust"
+description = "Library for handling FontLab Studio 5 VFB files"
+edition = "2021"
+categories = ["parsing"]
+readme = "README.md"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+# Old stuff: Python bindings
+# [lib]
+# The name of the native library. This is the name which will be used in Python to import the
+# library (i.e. `import string_sum`). If you change this, you must also change the name of the
+# `#[pymodule]` in `src/lib.rs`.
+# name = "vfbreader"
+# "cdylib" is necessary to produce a shared library for Python to import from.
+#
+# Downstream Rust code (including code in `bin/`, `examples/`, and `tests/`) will not be able
+# to `use string_sum;` unless the "rlib" or "lib" crate type is also included, e.g.:
+# crate-type = ["cdylib", "rlib"]
+# crate-type = ["cdylib"]
+
+# [dependencies]
+# pyo3 = { version = "0.17.3", features = ["extension-module"] }
