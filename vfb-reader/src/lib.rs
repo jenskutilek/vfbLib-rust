@@ -1,3 +1,5 @@
+mod vfb_constants;
+
 use hex;
 use serde::Serialize;
 use serde_json;
@@ -123,7 +125,7 @@ where
     // println!("    {:#?}", bytes);
 
     return VfbEntry {
-        key,
+        key: vfb_constants::VFB_KEYS[key],
         offset,
         size,
         // bytes,
