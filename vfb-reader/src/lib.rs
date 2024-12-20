@@ -1,4 +1,3 @@
-// use pyo3::prelude::*;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
@@ -230,38 +229,3 @@ pub fn read_vfb(path: &str) {
     }
     // return vfb;
 }
-
-// functions exposed to Python
-
-// /// Reads the basic structure of the VFB into a struct.
-// #[pyfunction]
-// fn read_vfb(path: &str) -> PyResult<()> {
-//     let file = File::open(path).expect("Failed to open file");
-//     let mut r = BufReader::new(file);
-
-//     read_header(&mut r);
-
-//     let mut obj = VfbObject { entries: Vec::new() };
-//     let mut entry: VfbEntry;
-//     let mut i = 0;
-//     loop {
-//         // use std::io::ErrorKind;
-//         entry = read_entry(&mut r);
-//         println!("{}: {}", entry.key, entry.size);
-//         obj.entries.append(&mut vec![entry]);
-//         // Err(error) if error.kind() == ErrorKind::UnexpectedEof => break;
-//         // _ => {}
-//         i += 1;
-//         if i > 262 {
-//             break;
-//         }
-//     }
-//     Ok(())
-// }
-
-// /// A Python module implemented in Rust.
-// #[pymodule]
-// fn vfbreader(_py: Python, m: &PyModule) -> PyResult<()> {
-//     m.add_function(wrap_pyfunction!(read_vfb, m)?)?;
-//     Ok(())
-// }
