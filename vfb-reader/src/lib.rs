@@ -1,13 +1,30 @@
+use hex;
+use serde::Serialize;
+use serde_json;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
 
+struct VfbHeaderReserved {
+    data: [u8; 34],
+}
+
+impl Serialize for VfbHeaderReserved {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.data.as_slice().serialize(serializer)
+    }
+}
+
+#[derive(Serialize)]
 struct VfbHeader {
     header00: u8,
     filetype: [u8; 5],
     header01: u16,
     header02: u16,
-    reserved: [u8; 34],
+    reserved: VfbHeaderReserved,
     header03: u16,
     header04: u16,
     header05: u16,
@@ -22,19 +39,22 @@ struct VfbHeader {
     header14: u16,
 }
 
+#[derive(Serialize)]
 struct VfbEntry {
     // VfbEntry<'a>
     key: u16,
+    #[serde(skip_serializing)]
     offset: u64,
     size: u32,
-    // data: &'a Vec<u8>,
-    data: Vec<u8>,
+    // bytes: Vec<u8>,
+    // bytes: &'a Vec<u8>,
+    data: String,
 }
 
+#[derive(Serialize)]
 struct VfbObject<'a> {
     header: &'a VfbHeader,
-    entries: &'a Vec<VfbEntry>,
-    // entries: &'a Vec<VfbEntry<'a>>,
+    entries: Vec<VfbEntry>,
 }
 
 // internal functions
@@ -87,23 +107,27 @@ where
     // println!("Reading entry at offset {:#?}", offset);
     let raw_key = read_u16(r);
     let key = raw_key & !0x8000;
-    
+
     let size: u32;
     if raw_key & 0x8000 > 0 {
         size = read_u32(r);
     } else {
         size = read_u16(r).into();
     }
-    let mut data: Vec<u8> = vec![0u8; size.try_into().unwrap()];
-    r.read_exact(&mut data).expect("ValueError");
-    println!("Entry: {:#?} at offset {:#?}, {:#?} bytes", key, offset, size);
-    // println!("    {:#?}", data);
+    let mut bytes: Vec<u8> = vec![0u8; size.try_into().unwrap()];
+    r.read_exact(&mut bytes).expect("ValueError");
+    // println!(
+    //     "Entry: {:#?} at offset {:#?}, {:#?} bytes",
+    //     key, offset, size
+    // );
+    // println!("    {:#?}", bytes);
 
     return VfbEntry {
         key,
         offset,
         size,
-        data,
+        // bytes,
+        data: hex::encode(bytes),
     };
 }
 
@@ -116,8 +140,9 @@ where
     r.read_exact(&mut filetype).expect("ValueError");
     let header01 = read_u16(r); // 3
     let header02 = read_u16(r); // 44
-    let mut reserved = [0u8; 34]; // 0000000000000000000000000000000000
-    r.read_exact(&mut reserved).expect("ValueError");
+    let mut res = [0u8; 34]; // 0000000000000000000000000000000000
+    r.read_exact(&mut res).expect("ValueError");
+    let reserved = VfbHeaderReserved { data: res };
     let header03 = read_u16(r); // 1
     let header04 = read_u16(r); // 0
     let header05 = read_u16(r); // 4
@@ -213,19 +238,21 @@ pub fn read_vfb(path: &str) {
     let mut r = BufReader::new(file);
     let header: VfbHeader;
     header = read_header(&mut r);
-    let _vfb = VfbObject {
+    let mut vfb = VfbObject {
         header: &header,
-        entries: &Vec::new(),
+        entries: Vec::new(),
     };
     let mut entry: VfbEntry;
     loop {
         entry = read_entry(&mut r);
-        println!("{}: {}", entry.key, entry.size);
-        // vfb.entries.append(entry);
-        if entry.key == 5 {
+        let key = entry.key;
+        if key == 5 {
             // End of file
             break;
         }
+        vfb.entries.push(entry);
     }
+    let json = serde_json::to_string_pretty(&vfb).expect("Serialization failed");
+    println!("JSON: {}", json);
     // return vfb;
 }
