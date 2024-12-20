@@ -26,7 +26,7 @@ struct VfbHeader {
     filetype: [u8; 5],
     header01: u16,
     header02: u16,
-    reserved: VfbHeaderReserved,
+    reserved: VfbHeaderReserved, // TODO: Better store as hexstring like in vfbLib?
     header03: u16,
     header04: u16,
     header05: u16,
@@ -66,9 +66,7 @@ where
     R: std::io::Read,
 {
     let result: i32;
-    let mut value = [0u8; std::mem::size_of::<u8>()];
-    r.read_exact(&mut value).expect("ValueError");
-    let val = value[0];
+    let val = read_u8(r);
     if val < 0x20 {
         return 0; // FIXME: Raise ValueError
     } else if val < 0xF7 {
@@ -76,9 +74,7 @@ where
         result = (val - 0x8B).into();
     } else if val < 0xFF {
         // read a second byte
-        let mut value2 = [0u8; std::mem::size_of::<u8>()];
-        r.read_exact(&mut value2).expect("ValueError");
-        let val2 = value2[0];
+        let val2 = read_u8(r);
         if val < 0xFB {
             // 108 to 1131, represented by 2 bytes
             result = (val - 0x8B + (val - 0xF7) * 0xFF + val2).into();
@@ -87,7 +83,7 @@ where
             result = (0x8F - val - (val - 0xFB) * 0xFF - val2).into();
         }
     } else if val == 0xFF {
-        // 4-byte integer follows
+        // 4-byte big-endian integer follows
         let mut value2 = [0u8; std::mem::size_of::<i32>()];
         r.read_exact(&mut value2).expect("ValueError");
         result = i32::from_be_bytes(value2);
@@ -105,25 +101,30 @@ where
     R: std::io::Read,
     R: Seek,
 {
+    // Take not of the entry offset, though we don't really need it
     let offset: u64 = r.stream_position().expect("Could not read from stream");
-    // println!("Reading entry at offset {:#?}", offset);
+    // If you remove it, you can also get rid of "R: Seek," above
+
+    // Read the key
     let raw_key = read_u16(r);
+    // The raw key may be masked with 0x8000 to indicate an u32 data size
     let key = raw_key & !0x8000;
 
+    // Read the size
     let size: u32;
     if raw_key & 0x8000 > 0 {
         size = read_u32(r);
     } else {
         size = read_u16(r).into();
     }
+
+    // Read the data
+    // TODO: This may be inefficient. What is the best way to store it, to copy the
+    // buffer, or use a Vec like now?
     let mut bytes: Vec<u8> = vec![0u8; size.try_into().unwrap()];
     r.read_exact(&mut bytes).expect("ValueError");
-    // println!(
-    //     "Entry: {:#?} at offset {:#?}, {:#?} bytes",
-    //     key, offset, size
-    // );
-    // println!("    {:#?}", bytes);
 
+    // Convert the key to human-readable string form using the VFB_KEYS
     let strkey = key.to_string();
     let humankey: String;
     if vfb_constants::VFB_KEYS.contains_key(&strkey) {
@@ -136,6 +137,7 @@ where
         humankey = strkey;
     }
 
+    // Return the entry
     return VfbEntry {
         key: humankey,
         offset,
