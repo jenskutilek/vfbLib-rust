@@ -44,7 +44,7 @@ struct VfbHeader {
 #[derive(Serialize)]
 struct VfbEntry {
     // VfbEntry<'a>
-    key: u16,
+    key: String,
     #[serde(skip_serializing)]
     offset: u64,
     size: u32,
@@ -124,8 +124,20 @@ where
     // );
     // println!("    {:#?}", bytes);
 
+    let strkey = key.to_string();
+    let humankey: String;
+    if vfb_constants::VFB_KEYS.contains_key(&strkey) {
+        humankey = vfb_constants::VFB_KEYS
+            .get(&strkey)
+            .expect("Unknown VFB key")
+            .to_string()
+    } else {
+        println!("Unknown key in VFB keys: {}", strkey);
+        humankey = strkey;
+    }
+
     return VfbEntry {
-        key: vfb_constants::VFB_KEYS[key],
+        key: humankey,
         offset,
         size,
         // bytes,
@@ -247,14 +259,13 @@ pub fn read_vfb(path: &str) {
     let mut entry: VfbEntry;
     loop {
         entry = read_entry(&mut r);
-        let key = entry.key;
-        if key == 5 {
-            // End of file
+        if entry.key == "5" {
+            // End of file, don't include
             break;
         }
         vfb.entries.push(entry);
     }
     let json = serde_json::to_string_pretty(&vfb).expect("Serialization failed");
-    println!("JSON: {}", json);
+    println!("{}", json);
     // return vfb;
 }
