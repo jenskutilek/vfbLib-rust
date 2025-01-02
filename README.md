@@ -2,6 +2,10 @@
 
 [vfbLib](https://github.com/LucasFonts/vfbLib), but faster
 
+## The VFB file format
+
+See [FILEFORMAT.md](FILEFORMAT.md)
+
 ## Notes for beginners (like me)
 
 ### Install rust
