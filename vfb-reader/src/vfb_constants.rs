@@ -2,8 +2,8 @@ use phf::phf_map;
 
 pub static VFB_KEYS: phf::Map<&'static str, &'static str> = phf_map! {
     // Sorted by appearance in the VFB
-    "1500" => "Encoding",
     "1501" => "Encoding Default",
+    "1500" => "Encoding",
     "1502" => "1502",
     "518" => "518",
     "257" => "257",
