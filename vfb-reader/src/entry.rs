@@ -7,7 +7,7 @@ use std::io::prelude::*;
 use std::io::BufReader;
 
 pub struct VfbEntryData {
-    bytes: Vec<u8>,
+    pub bytes: Vec<u8>,
 }
 
 impl Serialize for VfbEntryData {
