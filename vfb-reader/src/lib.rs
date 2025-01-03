@@ -41,6 +41,19 @@ struct VfbHeader {
     header14: u16,
 }
 
+struct VfbEntryData {
+    bytes: Vec<u8>,
+}
+
+impl Serialize for VfbEntryData {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        hex::encode(self.bytes.clone()).serialize(serializer)
+    }
+}
+
 #[derive(Serialize)]
 struct VfbEntry {
     // VfbEntry<'a>
@@ -48,7 +61,7 @@ struct VfbEntry {
     size: u32,
     // bytes: Vec<u8>,
     // bytes: &'a Vec<u8>,
-    data: String,
+    data: VfbEntryData,
 }
 
 #[derive(Serialize)]
@@ -134,8 +147,7 @@ where
     return VfbEntry {
         key: humankey,
         size,
-        // bytes,
-        data: hex::encode(bytes),
+        data: VfbEntryData { bytes },
     };
 }
 
