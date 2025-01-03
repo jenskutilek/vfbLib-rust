@@ -2,7 +2,6 @@ mod vfb_constants;
 
 use hex;
 use serde::Serialize;
-use serde_json;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
@@ -65,8 +64,8 @@ struct VfbEntry {
 }
 
 #[derive(Serialize)]
-struct VfbObject<'a> {
-    header: &'a VfbHeader,
+pub struct VfbObject {
+    header: VfbHeader,
     entries: Vec<VfbEntry>,
 }
 
@@ -253,13 +252,12 @@ where
     return u32::from_le_bytes(buf);
 }
 
-pub fn read_vfb(path: &str) {
+pub fn read_vfb(path: &str) -> VfbObject {
     let file = File::open(path).expect("Failed to open file");
     let mut r = BufReader::new(file);
-    let header: VfbHeader;
-    header = read_header(&mut r);
+    let header = read_header(&mut r);
     let mut vfb = VfbObject {
-        header: &header,
+        header,
         entries: Vec::new(),
     };
     let mut entry: VfbEntry;
@@ -271,7 +269,5 @@ pub fn read_vfb(path: &str) {
         }
         vfb.entries.push(entry);
     }
-    let json = serde_json::to_string_pretty(&vfb).expect("Serialization failed");
-    println!("{}", json);
-    // return vfb;
+    return vfb;
 }
