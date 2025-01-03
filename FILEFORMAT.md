@@ -162,7 +162,8 @@ As there are some aspects of a font source file that are represented by multiple
 
 As not every entry’s data format is known, parsing the data from the binary file into a data structure should be done in two steps:
 
-1. Split the file into entries (key, size, data)
-2. Parse the known entries’ data
+1. Read and parse the header. The header must always be parsed because it doesn't specify its total size in the binary file.
+2. Split the rest of the file into entries (key, size, data)
+3. Parse the known entries’ data
 
 When the original data of an entry is kept around, it can be written back to a new binary file as-is, even if other entries have been modified, and even if the purpose and the format of the entry in question is unknown.
