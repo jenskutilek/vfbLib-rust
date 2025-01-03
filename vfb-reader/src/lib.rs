@@ -100,7 +100,7 @@ where
 {
     // Read the key
     let raw_key = read_u16(r);
-    // The raw key may be masked with 0x8000 to indicate an u32 data size
+    // The raw key may be masked with 0x8000 to indicate a u32 data size
     let key = raw_key & !0x8000;
 
     // Read the size
