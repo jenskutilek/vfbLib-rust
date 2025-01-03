@@ -67,6 +67,35 @@ FF 05 02 02 80      EV      value: 84017792
 --------------- end of 11-byte chunk
 ```
 
+The only variation in this seems to be in files that were originally saved in other versions of FLS5 and on other platforms. The above file was saved on Windows by app version 5.2.2 build 5714.
+
+When saved on macOS by FLS5 5.0.4:
+
+```
+0F 00               u16     15 (length in bytes of the following chunk)
+--------------- start of 15-byte chunk in "key-value" format
+01                  u8      key: 1
+8C                  EV      value: 1
+02                  u8      key: 2
+FF 05 00 04 80      EV      value: 83887232
+03                  u8      key: 3
+FF 00 00 12 08      EV      value: 4616
+00                  u8      key: 0 (end marker?)
+--------------- end of 15-byte chunk
+```
+
+The 0xff05020280 and 0xff05000480 correspond to the app version numbers (5.2.2, 5.0.4). When saved from FLS 5.0.4 build 2741 on Windows, that number is 5.0.0 though:
+
+```
+01
+8B
+02
+FF 05 00 00 01
+03
+8B
+00
+```
+
 After that, those values follow as in the earlier format:
 
 ```
