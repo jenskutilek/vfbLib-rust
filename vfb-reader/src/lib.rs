@@ -45,8 +45,6 @@ struct VfbHeader {
 struct VfbEntry {
     // VfbEntry<'a>
     key: String,
-    #[serde(skip_serializing)]
-    offset: u64,
     size: u32,
     // bytes: Vec<u8>,
     // bytes: &'a Vec<u8>,
@@ -99,12 +97,7 @@ where
 fn read_entry<R>(r: &mut BufReader<R>) -> VfbEntry
 where
     R: std::io::Read,
-    R: Seek,
 {
-    // Take not of the entry offset, though we don't really need it
-    let offset: u64 = r.stream_position().expect("Could not read from stream");
-    // If you remove it, you can also get rid of "R: Seek," above
-
     // Read the key
     let raw_key = read_u16(r);
     // The raw key may be masked with 0x8000 to indicate an u32 data size
@@ -140,7 +133,6 @@ where
     // Return the entry
     return VfbEntry {
         key: humankey,
-        offset,
         size,
         // bytes,
         data: hex::encode(bytes),
