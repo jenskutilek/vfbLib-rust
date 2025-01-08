@@ -70,10 +70,11 @@ pub static VFB_KEYS: phf::Map<&'static str, &'static str> = phf_map! {
     "1262" => "Binary prep Table",
     "1263" => "Binary fpgm Table",
 
-    // Goes to font.ttinfo
+    // Goes to font.ttinfo:
     "1265" => "gasp",  // Gasp Ranges
     "1264" => "ttinfo",  // TrueType Info
-    "1271" => "1271",
+    // Goes to font.ttinfo:
+    "1271" => "vdmx",
     // Goes to font.ttinfo:
     "1270" => "hhea_line_gap",  // OK!
     "1278" => "hhea_ascender",  // OK!
