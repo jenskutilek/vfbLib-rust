@@ -107,7 +107,7 @@ After that, those values follow as in the earlier format:
 
 After the header, the data is organized in “entries”, which consist of a key, detailing the [meaning](vfb-reader/src/vfb_constants.rs) and data format of the entry, a data length value, and the actual data.
 
-### Entry with a data size greater than 0 and smaller than `u16::MAX` (65535)
+### Entry with a data size greater than 0 and less than or equal to `u16::MAX` (65535)
 
 ```
 DD 05               u16     1501  entry key (1501: "Encoding Default")
@@ -118,7 +118,7 @@ DD 05               u16     1501  entry key (1501: "Encoding Default")
 --------------- end of 6-byte chunk
 ```
 
-### Entry with a larger data size
+### Entry with a data size larger than `u16::MAX` (65535)
 
 If bit 15 is set in the entry key, it means that the entry data length that follows is a u32 number instead of a u16 number:
 
@@ -156,13 +156,13 @@ Speculative, those zero-length entries could serve as a marker for the start or 
 
 ## Entry order
 
-As there are some aspects of a font source file that are represented by multiple entries in the VFB file, (e.g. Glyph, Links, image, Glyph Bitmaps, Glyph Sketch, etc. taken all together represent a glyph), we can assume that the order of entries is important.
+As there are some aspects of a font source file that are represented by multiple entries in the VFB file, (e.g. Glyph, Links, image, Glyph Bitmaps, Glyph Sketch, etc. taken all together represent a glyph), we must assume that the order of entries is important.
 
 ## Reading and parsing the data
 
-As not every entry’s data format is known, parsing the data from the binary file into a data structure should be done in two steps:
+As not every entry’s data format is known, parsing the data from the binary file into a data structure should be done in several steps:
 
-1. Read and parse the header. The header must always be parsed because it doesn't specify its total size in the binary file.
+1. Read and parse the header. The header must always be parsed because its size in the binary file isn't known unless it is parsed.
 2. Split the rest of the file into entries (key, size, data)
 3. Parse the known entries’ data
 
