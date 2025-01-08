@@ -82,32 +82,33 @@ pub static VFB_KEYS: phf::Map<&'static str, &'static str> = phf_map! {
     // hstem_data and vstem_data:
     "1268" => "TrueType Stem PPEMs",
     "1524" => "TrueType Stem PPEMs 1",
+    // Probably in font.ttinfo, but not accessible through API:
     "1269" => "TrueType Stems",
     "1255" => "TrueType Zones",
-
-    // FIXME: should be a list in Python API:
+    // Goes to font:
     "2021" => "unicoderanges",  // Unicode Ranges
+    // Probably in font.ttinfo, but not accessible through API:
     "1272" => "Pixel Snap",
     "1274" => "Zone Stop PPEM",
     "1275" => "Code Stop PPEM",
     "1604" => "1604",  // Binary import? e.g. 255
     "2032" => "2032",  // Binary import? e.g. 300
     "1273" => "TrueType Zone Deltas",
+    // Goes to font again:
     "1138" => "Name Records",
     "1141" => "Custom CMAPs",
     "1136" => "PCLT Table",
     "2022" => "Export PCLT Table",
     "2025" => "note",  // fontNote
     "2030" => "2030",
-    // customdata may also come after Binary Table
     "2016" => "customdata",  // Font User Data
+    "2024" => "OpenType Metrics Class Flags",
+    "2026" => "OpenType Kerning Class Flags",
 
     // Repeat for each binary table:
     // truetypetables: TrueTypeTable
     "2014" => "TrueTypeTable",  // Binary Table
 
-    "2024" => "OpenType Metrics Class Flags",
-    "2026" => "OpenType Kerning Class Flags",
     "1276" => "features",  // openTypeFeatures
 
     // Repeat for each OpenType class:
