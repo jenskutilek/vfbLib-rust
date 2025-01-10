@@ -1,4 +1,5 @@
 use crate::buffer;
+// use crate::entry_ref;
 use crate::vfb_constants;
 
 use hex;
@@ -24,6 +25,7 @@ pub struct VfbEntry {
     pub key: String,
     pub size: u32,
     pub data: VfbEntryData,
+    // pub decompiled: entry_ref::EntryRef,
 }
 
 /// Read a VfbEntry from the stream and return it
