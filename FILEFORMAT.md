@@ -167,3 +167,27 @@ As not every entry’s data format is known, parsing the data from the binary fi
 3. Parse the known entries’ data
 
 When the original data of an entry is kept around, it can be written back to a new binary file as-is, even if other entries have been modified, and even if the purpose and the format of the entry in question is unknown.
+
+## Implementation
+
+```yaml
+VfbObject:
+  VfbHeader:
+    header0: u8
+    filetype: WLF10
+    # ...
+  VfbEntries:
+    - VfbEntryRef: points to a specialized entry
+      key: string
+      size: u32
+      data:
+        VfbEntryData:
+          bytes: Vec<u8>
+    - VfbEntryRef: points to a specialized entry
+    - VfbEntryRef: points to a specialized entry
+    # ...
+```
+
+Should the array of VfbEntries point to generalized VfbEntry structs, which then use a specialized parser and store a reference to the decompiled structures in the general VfbEntry?
+
+Or should there be a specialized VfbEntry type for each type of entry, which has its own parser and "knows" its decompiled structure?
