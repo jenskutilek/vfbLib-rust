@@ -66,6 +66,7 @@ where
     return u32::from_le_bytes(buf);
 }
 
+// TODO: We don't actually need this to read from a buffer, but from Vec<u8>
 pub fn read_value<R>(r: &mut BufReader<R>) -> i32
 where
     R: std::io::Read,
