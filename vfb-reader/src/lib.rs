@@ -9,16 +9,16 @@ use std::fs::File;
 use std::io::BufReader;
 
 #[derive(Serialize)]
-pub struct VfbObject {
+pub struct Vfb {
     header: header::Header,
     entries: Vec<entry::VfbEntry>,
 }
 
-pub fn read_vfb(path: &str) -> VfbObject {
+pub fn read_vfb(path: &str) -> Vfb {
     let file = File::open(path).expect("Failed to open file");
     let mut r = BufReader::new(file);
     let header = header::read(&mut r);
-    let mut vfb = VfbObject {
+    let mut vfb = Vfb {
         header,
         entries: Vec::new(),
     };
