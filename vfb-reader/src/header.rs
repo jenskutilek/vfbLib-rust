@@ -49,11 +49,11 @@ where
     if [last2, last] == [10, 0] {
         // FL4+ additions over FL3
         let creator_size = buffer::read_u16(r);
-        let _creator_bytes = buffer::read_bytes(r, creator_size.try_into().unwrap());
         // TODO:
         // read key, value pairs from creator_bytes until key == 0
         // We need a buffer::read_value that reads from Vec<u8> instead for that
         // For now, set the creator header to a constant:
+        // let _creator_bytes = buffer::read_bytes(r, creator_size.try_into().unwrap());
         creator = buffer::read_key_value_map(r);
         end0 = buffer::read_u8(r);
         end1 = buffer::read_u8(r);
