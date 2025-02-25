@@ -14,13 +14,16 @@ where
     return buf;
 }
 
-/// Read a 0-terminated key-value map from a buffer. The keys are u8, the values are
-/// "encoded values". Example:
+/// Read a key-value map from a buffer. The keys are u8, the values are
+/// "encoded values". A key of 0 means the end of the map is reached.
+/// 
+/// Example:
+/// 
 /// 01 | 8c
 /// 02 | ff 05 00 04 80
 /// 03 | ff 00 00 12 08
 /// 00
-/// The final 0 key is not part of the returned HashMap.
+/// The final 0 key is not included in the returned HashMap.
 pub fn read_key_value_map<R>(r: &mut BufReader<R>) -> HashMap<u8, i32>
 where
     R: std::io::Read,
