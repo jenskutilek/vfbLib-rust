@@ -1,7 +1,7 @@
 use crate::buffer;
 
 use serde::Serialize;
-use std::io::BufReader;
+use std::{collections::HashMap, io::BufReader};
 
 struct VfbHeaderChunk {
     // TODO: Two-step decompilation here as in entries.
@@ -31,7 +31,7 @@ pub struct VfbHeader {
     filetype: String,
     header1: u16,
     chunk1: VfbHeaderChunk,
-    creator: VfbHeaderCreator,
+    creator: HashMap<u8, i32>,
     end0: u8,
     end1: u8,
     end2: u16,
@@ -50,7 +50,7 @@ where
     let chunk1_usize: usize = chunk1_size.try_into().unwrap();
     let last = chunk1.data.as_slice()[chunk1_usize - 1];
     let last2 = chunk1.data.as_slice()[chunk1_usize - 2];
-    let creator: VfbHeaderCreator;
+    let creator: HashMap<u8, i32>;
     let end0: u8;
     let end1: u8;
     if [last2, last] == [10, 0] {
@@ -61,20 +61,12 @@ where
         // read key, value pairs from creator_bytes until key == 0
         // We need a buffer::read_value that reads from Vec<u8> instead for that
         // For now, set the creator header to a constant:
-        creator = VfbHeaderCreator {
-            value0: 0,
-            app_version: 0x05020280i32,
-            value1: 0,
-        };
+        creator = buffer::read_key_value_map(r);
         end0 = buffer::read_u8(r);
         end1 = buffer::read_u8(r);
     } else {
         // Older header format, upgrade it
-        creator = VfbHeaderCreator {
-            value0: 0,
-            app_version: 0x05020280i32,
-            value1: 0,
-        };
+        creator = HashMap::from([(1, 1), (2, 0x05030001), (3, 0)]);
         end0 = 6;
         end1 = 1;
     }
