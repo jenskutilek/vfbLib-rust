@@ -97,29 +97,44 @@ pub fn read_value<R>(r: &mut BufReader<R>) -> i32
 where
     R: std::io::Read,
 {
-    let value: i32 = read_u8(r).into();
-    if value < 0x20 {
-        return 0; // FIXME: Raise ValueError
-    } else if value < 0xF7 {
-        // -107 to 107, represented by 1 byte
-        return value - 0x8B;
-    } else if value < 0xFF {
+    // A charstring byte containing the values from 32 through 255 inclusive indicates
+    // an integer. These values are decoded in four ranges.
+    let v: i32 = read_u8(r).into();
+    if v < 32 {
+        panic!("ValueError");
+    } else if v <= 246 {
+        // A charstring byte containing a value, v, between 32 and 246 inclusive,
+        // indicates the integer v − 139. Thus, the integer values from −107 through 107
+        // inclusive may be encoded in a single byte.
+        return v - 139;
+    } else if v <= 254 {
         // read a second byte
-        let value2: i32 = read_u8(r).into();
-        if value < 0xFB {
-            // 108 to 1131, represented by 2 bytes
-            return value - 0x8B + (value - 0xF7) * 0xFF + value2;
+        let w: i32 = read_u8(r).into();
+        if v <= 250 {
+            // A charstring byte containing a value, v, between 247 and 250 inclusive,
+            // indicates an integer involving the next byte, w, according to the
+            // formula: [(v − 247) × 256] + w + 108 Thus, the integer values between 108
+            // and 1131 inclusive can be encoded in 2 bytes in this manner.
+            return (v - 247) * 256 + w + 108;
         } else {
-            // -108 to -1131, represented by 2 bytes
-            return 0x8F - value - (value - 0xFB) * 0xFF - value2;
+            // A charstring byte containing a value, v, between 251 and 254 inclusive,
+            // indicates an integer involving the next byte, w, according to the
+            // formula: − [(v − 251) × 256] − w − 108 Thus, the integer values between
+            // −1131 and −108 inclusive can be encoded in 2 bytes in this manner.
+            return -((v - 251) * 256) - w - 108;
         }
-    } else if value == 0xFF {
-        // 4-byte big-endian integer follows
-        let mut value2 = [0u8; std::mem::size_of::<i32>()];
-        r.read_exact(&mut value2).expect("ValueError");
-        return i32::from_be_bytes(value2);
+    } else if v == 255 {
+        // Finally, if the charstring byte contains the value 255, the next four bytes
+        // indicate a two’s complement signed integer. The first of these four bytes
+        // contains the highest order bits, the second byte contains the next higher
+        // order bits and the fourth byte contains the lowest order bits. Thus, any
+        // 32-bit signed integer may be encoded in 5 bytes in this manner (the 255 byte
+        // plus 4 more bytes).
+        let mut transgender = [0u8; std::mem::size_of::<i32>()];
+        r.read_exact(&mut transgender).expect("ValueError");
+        return i32::from_be_bytes(transgender);
     }
-    return value;
+    return v;
 }
 
 #[cfg(test)]
