@@ -100,12 +100,12 @@ After that, those values follow as in the earlier format:
 
 ```
 06 01               u16     262
-00 00
+00 00               u16     0
 ```
 
 ## Data entries
 
-After the header, the data is organized in “entries”, which consist of a key, detailing the [meaning](vfb-reader/src/vfb_constants.rs) and data format of the entry, a data length value, and the actual data.
+After the header, the data is organized in type-length-value “entries”, which consist of a key, detailing the [meaning](vfb-reader/src/vfb_constants.rs) and data format of the entry, a data length value, and the actual data.
 
 ### Entry with a data size greater than 0 and less than or equal to `u16::MAX` (65535)
 
@@ -171,23 +171,23 @@ When the original data of an entry is kept around, it can be written back to a n
 ## Implementation
 
 ```yaml
-VfbObject:
-  VfbHeader:
-    header0: u8
-    filetype: WLF10
-    # ...
-  VfbEntries:
-    - VfbEntryRef: points to a specialized entry
-      key: string
-      size: u32
-      data:
-        VfbEntryData:
-          bytes: Vec<u8>
-    - VfbEntryRef: points to a specialized entry
-    - VfbEntryRef: points to a specialized entry
-    # ...
+Vfb:
+    Header:
+        header0: u8
+        filetype: WLF10
+        # ...
+    Entries:
+        - EntryRef: points to a specialized entry
+          key: string
+          size: u32
+          data:
+              EntryData:
+                  bytes: Vec<u8>
+        - EntryRef: points to a specialized entry
+        - EntryRef: points to a specialized entry
+        # ...
 ```
 
-Should the array of VfbEntries point to generalized VfbEntry structs, which then use a specialized parser and store a reference to the decompiled structures in the general VfbEntry?
+Should the array of Entries point to generalized Entry structs, which then use a specialized parser and store a reference to the decompiled structures in the general Entry?
 
-Or should there be a specialized VfbEntry type for each type of entry, which has its own parser and "knows" its decompiled structure?
+Or should there be a specialized Entry type for each type of entry, which has its own parser and "knows" its decompiled structure?
