@@ -10,7 +10,7 @@ where
     let mut chunk = r.take(bytes_to_read);
     let n = chunk.read_to_end(&mut buf).expect("Didn't read enough");
     assert_eq!(bytes_to_read as usize, n);
-    return buf
+    return buf;
 }
 
 /// Read n u8 values from a buffer
@@ -29,7 +29,7 @@ where
     R: std::io::Read,
 {
     let buf = read_bytes(r, bytes_to_read);
-    let s= match std::str::from_utf8(&buf) {
+    let s = match std::str::from_utf8(&buf) {
         Ok(v) => v,
         Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
     };
