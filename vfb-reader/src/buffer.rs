@@ -95,5 +95,120 @@ where
     }
     return value;
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::buffer::{read_key_value_map, read_value};
+    use std::{collections::HashMap, io::BufReader};
+
+    fn get_reader(bytes: &[u8]) -> BufReader<&[u8]> {
+        return BufReader::new(&bytes[..]);
+    }
+
+    #[test]
+    fn test_value_1b_0x20() {
+        assert_eq!(read_value(&mut get_reader(&[0x20])), -107i32);
+    }
+
+    #[test]
+    fn test_value_1b_0x8a() {
+        assert_eq!(read_value(&mut get_reader(&[0x8a])), -1i32);
+    }
+
+    #[test]
+    fn test_value_1b_0x8b() {
+        assert_eq!(read_value(&mut get_reader(&[0x8b])), 0i32);
+    }
+
+    #[test]
+    fn test_value_1b_0xf6() {
+        assert_eq!(read_value(&mut get_reader(&[0xf6])), 107i32);
+    }
+
+    #[test]
+    fn test_value_2b_0xf700() {
+        assert_eq!(read_value(&mut get_reader(&[0xf7, 0x00])), 108i32);
+    }
+
+    #[test]
+    fn test_value_2b_0xf701() {
+        assert_eq!(read_value(&mut get_reader(&[0xf7, 0x01])), 109i32);
+    }
+
+    #[test]
+    fn test_value_2b_0xf7ff() {
+        assert_eq!(read_value(&mut get_reader(&[0xf7, 0xff])), 363i32);
+    }
+
+    #[test]
+    fn test_value_2b_0xf800() {
+        assert_eq!(read_value(&mut get_reader(&[0xf8, 0x00])), 364i32);
+    }
+
+    #[test]
+    fn test_value_2b_0xf801() {
+        assert_eq!(read_value(&mut get_reader(&[0xf8, 0x01])), 365i32);
+    }
+
+    #[test]
+    fn test_value_2b_0xfa00() {
+        assert_eq!(read_value(&mut get_reader(&[0xfa, 0x00])), 876i32);
+    }
+
+    #[test]
+    fn test_value_2b_0xfaff() {
+        assert_eq!(read_value(&mut get_reader(&[0xfa, 0xff])), 1131i32);
+    }
+
+    #[test]
+    fn test_value_2b_0xfb00() {
+        assert_eq!(read_value(&mut get_reader(&[0xfb, 0x00])), -108i32);
+    }
+
+    #[test]
+    fn test_value_2b_0xfb01() {
+        assert_eq!(read_value(&mut get_reader(&[0xfb, 0x01])), -109i32);
+    }
+
+    #[test]
+    fn test_value_2b_0xfe00() {
+        assert_eq!(read_value(&mut get_reader(&[0xfe, 0x00])), -876i32);
+    }
+
+    #[test]
+    fn test_value_2b_0xfeff() {
+        assert_eq!(read_value(&mut get_reader(&[0xfe, 0xff])), -1131i32);
+    }
+
+    #[test]
+    fn test_value_5b_0xff00000000() {
+        assert_eq!(
+            read_value(&mut get_reader(&[0xff, 0x00, 0x00, 0x00, 0x00])),
+            0i32
+        );
+    }
+
+    #[test]
+    fn test_value_5b_0xff00001000() {
+        assert_eq!(
+            read_value(&mut get_reader(&[0xff, 0x00, 0x00, 0x10, 0x00])),
+            4096i32
+        );
+    }
+
+    #[test]
+    fn test_value_5b_0xffffffffff() {
+        assert_eq!(
+            read_value(&mut get_reader(&[0xff, 0xff, 0xff, 0xff, 0xff])),
+            -1i32
+        );
+    }
+
+    #[test]
+    fn test_value_5b_0xffffffefff() {
+        assert_eq!(
+            read_value(&mut get_reader(&[0xff, 0xff, 0xff, 0xef, 0xff])),
+            -4097i32
+        );
     }
 }
