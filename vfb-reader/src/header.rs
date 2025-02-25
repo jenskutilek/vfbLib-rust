@@ -3,13 +3,13 @@ use crate::buffer;
 use serde::Serialize;
 use std::{collections::HashMap, io::BufReader};
 
-struct VfbHeaderChunk {
     // TODO: Two-step decompilation here as in entries.
     // Now only the raw data is stored, but the internals of the chunk format are unknown.
+struct Chunk {
     data: Vec<u8>,
 }
 
-impl Serialize for VfbHeaderChunk {
+impl Serialize for Chunk {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -30,7 +30,7 @@ pub struct Header {
     header0: u8,
     filetype: String,
     header1: u16,
-    chunk1: VfbHeaderChunk,
+    chunk1: Chunk,
     creator: HashMap<u8, i32>,
     end0: u8,
     end1: u8,
@@ -46,7 +46,7 @@ where
     let header1 = buffer::read_u16(r);
     let chunk1_size: u64 = buffer::read_u16(r).try_into().unwrap();
     let res = buffer::read_bytes(r, chunk1_size);
-    let chunk1 = VfbHeaderChunk { data: res };
+    let chunk1 = Chunk { data: res };
     let chunk1_usize: usize = chunk1_size.try_into().unwrap();
     let last = chunk1.data.as_slice()[chunk1_usize - 1];
     let last2 = chunk1.data.as_slice()[chunk1_usize - 2];
