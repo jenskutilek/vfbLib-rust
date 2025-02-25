@@ -16,9 +16,9 @@ where
 
 /// Read a key-value map from a buffer. The keys are u8, the values are
 /// "encoded values". A key of 0 means the end of the map is reached.
-/// 
+///
 /// Example:
-/// 
+///
 /// 01 | 8c
 /// 02 | ff 05 00 04 80
 /// 03 | ff 00 00 12 08
