@@ -66,37 +66,34 @@ where
     return u32::from_le_bytes(buf);
 }
 
-// TODO: We don't actually need this to read from a buffer, but from Vec<u8>
+/// Read an "encoded value" from a buffer
 pub fn read_value<R>(r: &mut BufReader<R>) -> i32
 where
     R: std::io::Read,
 {
-    let result: i32;
-    let val = read_u8(r);
-    if val < 0x20 {
+    let value: i32 = read_u8(r).into();
+    if value < 0x20 {
         return 0; // FIXME: Raise ValueError
-    } else if val < 0xF7 {
+    } else if value < 0xF7 {
         // -107 to 107, represented by 1 byte
-        result = (val - 0x8B).into();
-    } else if val < 0xFF {
+        return value - 0x8B;
+    } else if value < 0xFF {
         // read a second byte
-        let val2 = read_u8(r);
-        if val < 0xFB {
+        let value2: i32 = read_u8(r).into();
+        if value < 0xFB {
             // 108 to 1131, represented by 2 bytes
-            result = (val - 0x8B + (val - 0xF7) * 0xFF + val2).into();
+            return value - 0x8B + (value - 0xF7) * 0xFF + value2;
         } else {
             // -108 to -1131, represented by 2 bytes
-            result = (0x8F - val - (val - 0xFB) * 0xFF - val2).into();
+            return 0x8F - value - (value - 0xFB) * 0xFF - value2;
         }
-    } else if val == 0xFF {
+    } else if value == 0xFF {
         // 4-byte big-endian integer follows
         let mut value2 = [0u8; std::mem::size_of::<i32>()];
         r.read_exact(&mut value2).expect("ValueError");
-        result = i32::from_be_bytes(value2);
-    } else {
-        // Can't happen
-        result = 0; // FIXME: Raise ValueError
+        return i32::from_be_bytes(value2);
     }
-    // println!("Raw: {}, result: {}", val, result);
-    return result;
+    return value;
+}
+    }
 }
