@@ -19,13 +19,6 @@ impl Serialize for Chunk {
 }
 
 #[derive(Serialize)]
-pub struct VfbHeaderCreator {
-    value0: i32,
-    app_version: i32,
-    value1: i32,
-}
-
-#[derive(Serialize)]
 pub struct Header {
     header0: u8,
     filetype: String,
