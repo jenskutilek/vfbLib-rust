@@ -8,6 +8,7 @@ use serde::Serialize;
 use std::fs::File;
 use std::io::BufReader;
 
+/// The main struct representing the VFB
 #[derive(Serialize)]
 pub struct Vfb {
     header: header::Header,

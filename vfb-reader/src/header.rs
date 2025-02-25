@@ -3,9 +3,9 @@ use crate::buffer;
 use serde::Serialize;
 use std::{collections::HashMap, io::BufReader};
 
-    // TODO: Two-step decompilation here as in entries.
-    // Now only the raw data is stored, but the internals of the chunk format are unknown.
 struct Chunk {
+    // We only store the raw data here for now, because the internals of the chunk
+    // format are unknown.
     data: Vec<u8>,
 }
 
@@ -18,6 +18,7 @@ impl Serialize for Chunk {
     }
 }
 
+/// The header of a VFB
 #[derive(Serialize)]
 pub struct Header {
     header0: u8,
@@ -30,6 +31,7 @@ pub struct Header {
     end2: u16,
 }
 
+/// Read the header from the buffer and return it as a struct
 pub fn read<R>(r: &mut BufReader<R>) -> Header
 where
     R: std::io::Read,
@@ -48,21 +50,30 @@ where
     let end1: u8;
     if [last2, last] == [10, 0] {
         // FL4+ additions over FL3
-        let creator_size = buffer::read_u16(r);
-        // TODO:
-        // read key, value pairs from creator_bytes until key == 0
-        // We need a buffer::read_value that reads from Vec<u8> instead for that
-        // For now, set the creator header to a constant:
+
+        // The size of the creator chunk is specified in the header, but it contains a
+        // key-value map that is terminated by a null byte. So it seems overspecified,
+        // and we don't really need the `creator_size`.
+        let _creator_size = buffer::read_u16(r);
+
+        // We could read `creator_size` bytes here, but then `buffer::read_key_value_map()`
+        // would need to work on bytes, not on the buffered reader as it does now:
         // let _creator_bytes = buffer::read_bytes(r, creator_size.try_into().unwrap());
+
+        // So we ignore all this and just read the key-value map directly from the buffer
+        // which terminates at the null byte key:
         creator = buffer::read_key_value_map(r);
+
+        // Two more u8 fields follow:
         end0 = buffer::read_u8(r);
         end1 = buffer::read_u8(r);
     } else {
-        // Older header format, upgrade it
+        // Older header format, upgrade it. We use a custom version, 5.3.0.1, here.
         creator = HashMap::from([(1, 1), (2, 0x05030001), (3, 0)]);
         end0 = 6;
         end1 = 1;
     }
+    // And the final u16 of the header:
     let end2 = buffer::read_u16(r);
 
     return Header {
