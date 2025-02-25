@@ -93,6 +93,10 @@ where
 }
 
 /// Read an "encoded value" from a buffer
+/// 
+/// Lifted from the Type 1 font spec:
+/// https://adobe-type-tools.github.io/font-tech-notes/pdfs/T1_SPEC.pdf
+/// Page 48, 6.2 Charstring Number Encoding
 pub fn read_value<R>(r: &mut BufReader<R>) -> i32
 where
     R: std::io::Read,
