@@ -26,7 +26,7 @@ pub struct VfbHeaderCreator {
 }
 
 #[derive(Serialize)]
-pub struct VfbHeader {
+pub struct Header {
     header0: u8,
     filetype: String,
     header1: u16,
@@ -37,7 +37,7 @@ pub struct VfbHeader {
     end2: u16,
 }
 
-pub fn read<R>(r: &mut BufReader<R>) -> VfbHeader
+pub fn read<R>(r: &mut BufReader<R>) -> Header
 where
     R: std::io::Read,
 {
@@ -72,7 +72,7 @@ where
     }
     let end2 = buffer::read_u16(r);
 
-    return VfbHeader {
+    return Header {
         header0,
         filetype,
         header1,

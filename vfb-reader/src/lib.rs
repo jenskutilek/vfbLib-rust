@@ -10,7 +10,7 @@ use std::io::BufReader;
 
 #[derive(Serialize)]
 pub struct VfbObject {
-    header: header::VfbHeader,
+    header: header::Header,
     entries: Vec<entry::VfbEntry>,
 }
 
