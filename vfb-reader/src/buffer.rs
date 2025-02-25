@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io::prelude::*;
 use std::io::BufReader;
 
@@ -13,6 +14,28 @@ where
     return buf;
 }
 
+/// Read a 0-terminated key-value map from a buffer. The keys are u8, the values are
+/// "encoded values". Example:
+/// 01 | 8c
+/// 02 | ff 05 00 04 80
+/// 03 | ff 00 00 12 08
+/// 00
+/// The final 0 key is not part of the returned HashMap.
+pub fn read_key_value_map<R>(r: &mut BufReader<R>) -> HashMap<u8, i32>
+where
+    R: std::io::Read,
+{
+    let mut map = HashMap::new();
+    let mut k = read_u8(r);
+    while k != 0 {
+        let v = read_value(r);
+        map.insert(k, v);
+        k = read_u8(r);
+    }
+    return map;
+}
+
+// TODO: Do we need this?
 /// Read n u8 values from a buffer
 // fn read_n_u8<R>(r: &mut BufReader<R>, n: u8) -> u8
 // where
@@ -209,6 +232,17 @@ mod tests {
         assert_eq!(
             read_value(&mut get_reader(&[0xff, 0xff, 0xff, 0xef, 0xff])),
             -4097i32
+        );
+    }
+
+    #[test]
+    fn test_key_value_map() {
+        assert_eq!(
+            read_key_value_map(&mut get_reader(&[
+                0x01, 0x8c, 0x02, 0xff, 0x05, 0x00, 0x04, 0x80, 0x03, 0xff, 0x00, 0x00, 0x12, 0x08,
+                0x00
+            ])),
+            HashMap::from([(1, 1), (2, 0x05000480), (3, 4616)])
         );
     }
 }
