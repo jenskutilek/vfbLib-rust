@@ -55,7 +55,7 @@ If the last u16 of the 44-byte chunk was 0x0601, two more bytes follow, and the 
 If the last u16 of the 44-byte chunk was 0x0a00, the VFB is in the format written by FLS5, and we read and interpret the next values like this instead:
 
 ```
-0B 00               u16     11 (length in bytes of the following chunk)
+0B 00               u16     11 (length in bytes of the following "creator" chunk)
 --------------- start of 11-byte chunk in "key-value" format
 01                  u8      key: 1
 8C                  EV      value: 1
@@ -72,7 +72,7 @@ The only variation in this seems to be in files that were originally saved in ot
 When saved on macOS by FLS5 5.0.4:
 
 ```
-0F 00               u16     15 (length in bytes of the following chunk)
+0F 00               u16     15 (length in bytes of the following "creator" chunk)
 --------------- start of 15-byte chunk in "key-value" format
 01                  u8      key: 1
 8C                  EV      value: 1
@@ -175,6 +175,13 @@ Vfb:
     Header:
         header0: u8
         filetype: WLF10
+        # ...
+        chunk1:
+          # ...
+        creator:
+            "1": 1
+            "2": 83887232 # 05.00.04.80
+            "3": 4616
         # ...
     Entries:
         - EntryRef: points to a specialized entry
