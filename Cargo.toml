@@ -1,6 +1,9 @@
 [profile.release]
 codegen-units = 1
 lto = true
+overflow-checks = false
+panic = "abort"
+strip = true
 
 [workspace]
 resolver = "2"
