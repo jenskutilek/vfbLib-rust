@@ -154,6 +154,7 @@ pub static VFB_KEYS: phf::Map<&'static str, &'static str> = phf_map! {
     "2028" => "2028",  // MM, proportional to num of masters
     "2027" => "Glyph Origin",
     "1250" => "unicodes",  // Glyph Unicode
+    "2034" => "2034",  // some kind of string
     "1253" => "Glyph Unicode Non-BMP",
     "2012" => "mark",  // Mark Color
     "2015" => "glyph.customdata",  // Glyph User Data
