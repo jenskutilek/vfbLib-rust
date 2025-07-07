@@ -1,7 +1,6 @@
 use crate::buffer;
-// use crate::entry_ref;
+use crate::entries::{decompile, VfbEntryTypes};
 use crate::vfb_constants;
-
 use hex;
 use serde::Serialize;
 use std::io::prelude::*;
@@ -24,8 +23,39 @@ impl Serialize for VfbEntryData {
 pub struct VfbEntry {
     pub key: String,
     pub size: u32,
-    pub data: VfbEntryData,
-    // pub decompiled: entry_ref::EntryRef,
+    pub data: Option<VfbEntryData>,
+    pub decompiled: Option<VfbEntryTypes>,
+}
+
+impl VfbEntry {
+    pub fn new(key: String, size: u32) -> Self {
+        Self {
+            key,
+            size,
+            data: None,
+            decompiled: None,
+        }
+    }
+
+    // Build the entry from binary data
+    pub fn with_data(mut self, data: Vec<u8>, decompile: bool) -> Self {
+        self.data = Some(VfbEntryData { bytes: data });
+        if decompile {
+            self.decompile();
+        }
+        self
+    }
+
+    // Build the entry from structured data
+    pub fn with_decompiled(mut self, data: VfbEntryTypes) -> Self {
+        self.decompiled = Some(data);
+        self
+    }
+
+    // Decompile the entry and store the result in the entry
+    pub fn decompile(&mut self) {
+        self.decompiled = decompile(self);
+    }
 }
 
 /// Read a VfbEntry from the stream and return it
@@ -66,9 +96,5 @@ where
     }
 
     // Return the entry
-    return VfbEntry {
-        key: humankey,
-        size,
-        data: VfbEntryData { bytes },
-    };
+    return VfbEntry::new(humankey, size).with_data(bytes, false);
 }

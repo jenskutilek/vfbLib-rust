@@ -1,6 +1,6 @@
 mod buffer;
+mod entries;
 mod entry;
-mod entry_ref;
 mod header;
 mod vfb_constants;
 
