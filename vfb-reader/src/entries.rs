@@ -59,6 +59,7 @@ pub fn decompile(entry: &VfbEntry) -> Option<VfbEntryTypes> {
         "pref_style_name" => string::decompile(&mut r),
         "mac_compatible" => string::decompile(&mut r),
         "vendor" => string::decompile(&mut r),
+        "pcl_chars_set" => string::decompile(&mut r),
         "note" => string::decompile(&mut r),
         "customdata" => string::decompile(&mut r),
         "OpenType Class" => string::decompile(&mut r),
