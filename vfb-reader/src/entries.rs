@@ -7,7 +7,7 @@ pub mod encoding;
 
 #[derive(Serialize)]
 pub enum VfbEntryTypes {
-    Encoding(encoding::EncodingRecord),
+    Encoding((u16, String)),
 }
 
 /// Dispatch the decompilation to the appropriate function
