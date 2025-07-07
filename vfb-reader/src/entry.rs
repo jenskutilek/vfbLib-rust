@@ -19,6 +19,8 @@ impl Serialize for VfbEntryData {
     }
 }
 
+// TODO: Don't serialize size and data if the entry has been decompiled
+// Or skip size always?
 #[derive(Serialize)]
 pub struct VfbEntry {
     pub key: String,
