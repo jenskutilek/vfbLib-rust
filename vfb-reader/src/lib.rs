@@ -1,7 +1,7 @@
 mod buffer;
 mod entries;
-mod entry;
-mod header;
+pub mod entry;
+pub mod header;
 mod vfb_constants;
 
 use serde::Serialize;
