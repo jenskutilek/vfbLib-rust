@@ -3,7 +3,7 @@ use serde::Serialize;
 use std::io::BufReader;
 use std::io::Cursor;
 
-pub mod encoding;
+mod encoding;
 
 #[derive(Serialize)]
 pub enum VfbEntryTypes {
