@@ -80,6 +80,7 @@ pub static VFB_KEYS: phf::Map<&'static str, &'static str> = phf_map! {
     "1278" => "hhea_ascender",
     "1279" => "hhea_descender",
     // hstem_data and vstem_data:
+    "1266" => "TrueType Stem PPEMs 2 And 3",
     "1268" => "TrueType Stem PPEMs",
     "1524" => "TrueType Stem PPEMs 1",
     // Probably in font.ttinfo, but not accessible through API:
@@ -136,6 +137,7 @@ pub static VFB_KEYS: phf::Map<&'static str, &'static str> = phf_map! {
     "527" => "527",
     "1294" => "Global Guides",
     "1296" => "Global Guide Properties",
+    "1295" => "Global Mask",
     "1066" => "default_character",  // Default Glyph
 
     // Begin: Repeat for each glyph
