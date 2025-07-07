@@ -1,6 +1,7 @@
 use crate::entry::VfbEntry;
 use serde::Serialize;
 use std::io::BufReader;
+use std::io::Cursor;
 
 pub mod encoding;
 
@@ -18,10 +19,10 @@ pub fn decompile(entry: &VfbEntry) -> Option<VfbEntryTypes> {
     if bytes.len() == 0 {
         return None;
     }
-    let r = BufReader::new(bytes);
+    let mut r = BufReader::new(Cursor::new(bytes));
     let decompiled = match entry.key.as_str() {
-        "Encoding Default" => encoding::decompile(r),
-        "Encoding" => encoding::decompile(r),
+        "Encoding Default" => encoding::decompile(&mut r),
+        "Encoding" => encoding::decompile(&mut r),
         _ => None,
     };
     decompiled

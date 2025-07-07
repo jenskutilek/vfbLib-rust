@@ -96,5 +96,5 @@ where
     }
 
     // Return the entry
-    return VfbEntry::new(humankey, size).with_data(bytes, false);
+    return VfbEntry::new(humankey, size).with_data(bytes, true);
 }

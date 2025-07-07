@@ -1,18 +1,21 @@
-use std::io::BufReader;
-use serde::Serialize;
 use crate::buffer;
 use crate::entries::VfbEntryTypes;
+use serde::Serialize;
+use std::io::BufReader;
 
 #[derive(Serialize)]
 pub struct EncodingRecord {
     gid: u16,
-    name: str,
+    name: String,
 }
 
-pub fn decompile<R>(r: &mut BufReader<R>) -> Option<VfbEntryTypes> {
+pub fn decompile<R>(r: &mut BufReader<R>) -> Option<VfbEntryTypes>
+where
+    R: std::io::Read,
+{
     let gid = buffer::read_u16(r);
-    let name = buffer::read_str(r, bytes_to_read)
-    let er = EncodingRecord {gid, name: &name};
+    let name = buffer::read_str_remainder(r);
+    let er = EncodingRecord { gid, name };
 
     Some(VfbEntryTypes::Encoding(er))
 }

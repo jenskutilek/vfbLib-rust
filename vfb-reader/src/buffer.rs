@@ -14,6 +14,17 @@ where
     return buf;
 }
 
+/// Read the remaining bytes from a buffer
+pub fn read_bytes_remainder<R>(r: &mut BufReader<R>) -> Vec<u8>
+where
+    R: std::io::Read,
+{
+    let mut buf = vec![];
+    let mut chunk = r.take(0xFFFF);
+    let _ = chunk.read_to_end(&mut buf);
+    return buf;
+}
+
 /// Read a key-value map from a buffer. The keys are u8, the values are
 /// "encoded values". A key of 0 means the end of the map is reached.
 ///
@@ -62,6 +73,19 @@ where
     return s.to_string();
 }
 
+/// Read the remaining bytes from a buffer and return them as a string
+pub fn read_str_remainder<R>(r: &mut BufReader<R>) -> String
+where
+    R: std::io::Read,
+{
+    let buf = read_bytes_remainder(r);
+    let s = match std::str::from_utf8(&buf) {
+        Ok(v) => v,
+        Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+    };
+    return s.to_string();
+}
+
 /// Read a u8 value from a buffer
 pub fn read_u8<R>(r: &mut BufReader<R>) -> u8
 where
@@ -93,7 +117,7 @@ where
 }
 
 /// Read an "encoded value" from a buffer
-/// 
+///
 /// Lifted from the Type 1 font spec:
 /// https://adobe-type-tools.github.io/font-tech-notes/pdfs/T1_SPEC.pdf
 /// Page 48, 6.2 Charstring Number Encoding
