@@ -46,14 +46,14 @@ pub static VFB_KEYS: phf::Map<&'static str, &'static str> = phf_map! {
     "1139" => "mac_compatible",  // OT Mac Name
     "1140" => "1140",
     "1121" => "vendor",  // vendorID
-    "1133" => "x_u_id",  // Type 1 XUIDs
-    "1134" => "x_u_id_num",  // Type 1 XUIDs Count
+    "1133" => "xuid",  // Type 1 XUIDs
+    "1134" => "xuid_num",  // Type 1 XUIDs Count
     "1132" => "year",  // OK!
     "1130" => "version_major",  // versionMajor
     "1131" => "version_minor",  // versionMinor
     "1135" => "upm",  // OK!
     "1090" => "fond_id",  // FOND Family ID
-    "1093" => "1093",
+    "1093" => "PostScript Hinting Options",
     "1068" => "1068",
     "1530" => "blue_values_num",  // Blue Values Count
     "1531" => "other_blues_num",  // Other Blues Count
@@ -88,14 +88,14 @@ pub static VFB_KEYS: phf::Map<&'static str, &'static str> = phf_map! {
     // Goes to font:
     "2021" => "unicoderanges",  // Unicode Ranges
     // Probably in font.ttinfo, but not accessible through API:
-    "1272" => "Pixel Snap",
-    "1274" => "Zone Stop PPEM",
-    "1275" => "Code Stop PPEM",
+    "1272" => "stemsnaplimit",
+    "1274" => "zoneppm",
+    "1275" => "codeppm",
     "1604" => "1604",  // Binary import? e.g. 255
     "2032" => "2032",  // Binary import? e.g. 300
     "1273" => "TrueType Zone Deltas",
     // Goes to font again:
-    "1138" => "Name Records",
+    "1138" => "fontnames",
     "1141" => "Custom CMAPs",
     "1136" => "PCLT Table",
     "2022" => "Export PCLT Table",
@@ -146,12 +146,10 @@ pub static VFB_KEYS: phf::Map<&'static str, &'static str> = phf_map! {
     "2013" => "Glyph Bitmaps",
     "2023" => "2023",  // 1 encoded value per master
     "2019" => "Glyph Sketch",
-    "2010" => "2010",
+    "2010" => "Glyph Hinting Options",
     "2009" => "mask",  // Mask
-    // Mask width master 1?: Two ints or one long int?
-    "2011" => "2011",
-    // Mask width master 2?:
-    "2028" => "2028",  // MM, proportional to num of masters
+    "2011" => "mask.metrics",  // Single master mask metrics
+    "2028" => "mask.metrics_mm",  // Mask metrics master 2 to 16
     "2027" => "Glyph Origin",
     "1250" => "unicodes",  // Glyph Unicode
     "2034" => "2034",  // some kind of string
@@ -173,5 +171,5 @@ pub static VFB_KEYS: phf::Map<&'static str, &'static str> = phf_map! {
     "1410" => "1410",
 
     // File end marker:
-    "5" => "5",
+    "5" => "EOF",
 };
