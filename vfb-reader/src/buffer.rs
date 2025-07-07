@@ -1,6 +1,9 @@
+use encoding_rs::WINDOWS_1252;
 use std::collections::HashMap;
 use std::io::prelude::*;
 use std::io::BufReader;
+
+const VFB_UNICODE_STRINGS: bool = false;
 
 /// Read the specified number of bytes from a buffer
 pub fn read_bytes<R>(r: &mut BufReader<R>, bytes_to_read: u64) -> Vec<u8>
@@ -66,11 +69,18 @@ where
     R: std::io::Read,
 {
     let buf = read_bytes(r, bytes_to_read);
-    let s = match std::str::from_utf8(&buf) {
-        Ok(v) => v,
-        Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
-    };
-    return s.to_string();
+
+    if VFB_UNICODE_STRINGS {
+        let s = match std::str::from_utf8(&buf) {
+            Ok(v) => v,
+            Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+        };
+        return s.to_string();
+    } else {
+        let (s, _, _) = WINDOWS_1252.decode(&buf);
+        return s.to_string();
+    }
+    
 }
 
 /// Read the remaining bytes from a buffer and return them as a string
@@ -79,11 +89,16 @@ where
     R: std::io::Read,
 {
     let buf = read_bytes_remainder(r);
-    let s = match std::str::from_utf8(&buf) {
-        Ok(v) => v,
-        Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
-    };
-    return s.to_string();
+    if VFB_UNICODE_STRINGS {
+        let s = match std::str::from_utf8(&buf) {
+            Ok(v) => v,
+            Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+        };
+        return s.to_string();
+    } else {
+        let (s, _, _) = WINDOWS_1252.decode(&buf);
+        return s.to_string();
+    }
 }
 
 /// Read a u8 value from a buffer
