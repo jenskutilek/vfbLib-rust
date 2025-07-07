@@ -76,9 +76,9 @@ pub static VFB_KEYS: phf::Map<&'static str, &'static str> = phf_map! {
     // Goes to font.ttinfo:
     "1271" => "vdmx",
     // Goes to font.ttinfo:
-    "1270" => "hhea_line_gap",  // OK!
-    "1278" => "hhea_ascender",  // OK!
-    "1279" => "hhea_descender",  // OK!
+    "1270" => "hhea_line_gap",
+    "1278" => "hhea_ascender",
+    "1279" => "hhea_descender",
     // hstem_data and vstem_data:
     "1268" => "TrueType Stem PPEMs",
     "1524" => "TrueType Stem PPEMs 1",
@@ -86,7 +86,7 @@ pub static VFB_KEYS: phf::Map<&'static str, &'static str> = phf_map! {
     "1269" => "TrueType Stems",
     "1255" => "TrueType Zones",
     // Goes to font:
-    "2021" => "unicoderanges",  // Unicode Ranges
+    "2021" => "unicoderanges",
     // Probably in font.ttinfo, but not accessible through API:
     "1272" => "stemsnaplimit",
     "1274" => "zoneppm",
@@ -99,9 +99,9 @@ pub static VFB_KEYS: phf::Map<&'static str, &'static str> = phf_map! {
     "1141" => "Custom CMAPs",
     "1136" => "PCLT Table",
     "2022" => "Export PCLT Table",
-    "2025" => "note",  // fontNote
+    "2025" => "note",
     "2030" => "2030",
-    "2016" => "customdata",  // Font User Data
+    "2016" => "customdata",
     "2024" => "OpenType Metrics Class Flags",
     "2026" => "OpenType Kerning Class Flags",
 
