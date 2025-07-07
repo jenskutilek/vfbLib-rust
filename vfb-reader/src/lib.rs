@@ -26,7 +26,7 @@ pub fn read_vfb(path: &str) -> Vfb {
     let mut entry: entry::VfbEntry;
     loop {
         entry = entry::read(&mut r);
-        if entry.key == "5" {
+        if entry.key == "EOF" {
             // End of file, don't include
             break;
         }
