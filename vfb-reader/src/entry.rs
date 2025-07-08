@@ -1,11 +1,11 @@
 use crate::{
-    buffer,
+    buffer::VfbReader,
     entries::{decompile, RawData, VfbEntryType},
     error::VfbError,
     vfb_constants,
 };
 use serde::Serialize;
-use std::io::{prelude::*, BufReader};
+use std::io::prelude::*;
 
 #[derive(Serialize)]
 pub struct VfbEntry {
@@ -42,39 +42,41 @@ impl VfbEntry {
     }
 }
 
-/// Read a VfbEntry from the stream and return it
-pub fn read<R>(r: &mut BufReader<R>) -> Result<VfbEntry, VfbError>
+impl<R> VfbReader<R>
 where
     R: std::io::Read,
 {
-    // Read the key
-    let raw_key = buffer::read_u16(r)?;
-    // The raw key may be masked with 0x8000 to indicate a u32 data size
-    let key = raw_key & !0x8000;
+    /// Read a VfbEntry from the stream and return it
+    pub fn read_entry(&mut self) -> Result<VfbEntry, VfbError> {
+        // Read the key
+        let raw_key = self.read_u16()?;
+        // The raw key may be masked with 0x8000 to indicate a u32 data size
+        let key = raw_key & !0x8000;
 
-    // Read the size
-    let size: u32 = if raw_key & 0x8000 > 0 {
-        buffer::read_u32(r)?
-    } else {
-        buffer::read_u16(r)?.into()
-    };
+        // Read the size
+        let size: u32 = if raw_key & 0x8000 > 0 {
+            self.read_u32()?
+        } else {
+            self.read_u16()?.into()
+        };
 
-    // Read the data
-    // TODO: This may be inefficient. What is the best way to store it, to copy the
-    // buffer, or use a Vec like now?
-    let mut bytes: Vec<u8> = vec![0u8; size.try_into().map_err(|_| VfbError::Overflow(size))?];
-    r.read_exact(&mut bytes)?;
+        // Read the data
+        // TODO: This may be inefficient. What is the best way to store it, to copy the
+        // buffer, or use a Vec like now?
+        let mut bytes: Vec<u8> = vec![0u8; size.try_into().map_err(|_| VfbError::Overflow(size))?];
+        self.reader().read_exact(&mut bytes)?;
 
-    // Convert the key to human-readable string form using the VFB_KEYS
-    let strkey = key.to_string();
-    let humankey: String = vfb_constants::VFB_KEYS
-        .get(&strkey)
-        .map(|&s| s.to_string())
-        .unwrap_or_else(|| {
-            println!("Unknown key in VFB keys: {}", strkey);
-            strkey
-        });
+        // Convert the key to human-readable string form using the VFB_KEYS
+        let strkey = key.to_string();
+        let humankey: String = vfb_constants::VFB_KEYS
+            .get(&strkey)
+            .map(|&s| s.to_string())
+            .unwrap_or_else(|| {
+                println!("Unknown key in VFB keys: {}", strkey);
+                strkey
+            });
 
-    // Return the entry
-    VfbEntry::new_from_data(humankey, bytes, true)
+        // Return the entry
+        VfbEntry::new_from_data(humankey, bytes, true)
+    }
 }

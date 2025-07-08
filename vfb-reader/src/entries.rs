@@ -1,6 +1,5 @@
-use crate::error::VfbError;
+use crate::{buffer::VfbReader, error::VfbError};
 use serde::Serialize;
-use std::io::{BufReader, Cursor};
 
 mod encoding;
 mod string;
@@ -32,7 +31,7 @@ pub fn decompile(key: &str, bytes: &[u8]) -> Result<Option<VfbEntryType>, VfbErr
         return Ok(None);
     }
 
-    let mut r = BufReader::new(bytes);
+    let mut r = VfbReader::new(bytes);
 
     // Match the entry key to the appropriate decompile function, return None for unknown keys
     match key {
