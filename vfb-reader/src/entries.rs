@@ -32,8 +32,7 @@ pub fn decompile(key: &str, bytes: &[u8]) -> Result<Option<VfbEntryType>, VfbErr
         return Ok(None);
     }
 
-    // FIXME: Do we actually need to combine Cursor + BufReader?
-    let mut r = BufReader::new(Cursor::new(bytes));
+    let mut r = BufReader::new(bytes);
 
     // Match the entry key to the appropriate decompile function, return None for unknown keys
     match key {
