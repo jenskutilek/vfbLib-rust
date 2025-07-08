@@ -4,7 +4,7 @@ use std::{
     io::{prelude::*, BufReader},
 };
 
-use crate::{error::VfbError, Vfb};
+use crate::error::VfbError;
 
 const VFB_UNICODE_STRINGS: bool = false;
 
@@ -15,7 +15,7 @@ where
 {
     let mut buf = vec![];
     let mut chunk = r.take(bytes_to_read);
-    let n = chunk.read_to_end(&mut buf)?;
+    let _ = chunk.read_to_end(&mut buf)?;
     Ok(buf)
 }
 
@@ -187,7 +187,7 @@ mod tests {
     use std::{collections::HashMap, io::BufReader};
 
     fn get_reader(bytes: &[u8]) -> BufReader<&[u8]> {
-        return BufReader::new(&bytes[..]);
+        BufReader::new(bytes)
     }
 
     #[test]

@@ -74,12 +74,11 @@ where
     let key = raw_key & !0x8000;
 
     // Read the size
-    let size: u32;
-    if raw_key & 0x8000 > 0 {
-        size = buffer::read_u32(r)?;
+    let size: u32 = if raw_key & 0x8000 > 0 {
+        buffer::read_u32(r)?
     } else {
-        size = buffer::read_u16(r)?.into();
-    }
+        buffer::read_u16(r)?.into()
+    };
 
     // Read the data
     // TODO: This may be inefficient. What is the best way to store it, to copy the
@@ -89,16 +88,13 @@ where
 
     // Convert the key to human-readable string form using the VFB_KEYS
     let strkey = key.to_string();
-    let humankey: String;
-    if vfb_constants::VFB_KEYS.contains_key(&strkey) {
-        humankey = vfb_constants::VFB_KEYS
-            .get(&strkey)
-            .expect("Unknown VFB key")
-            .to_string()
-    } else {
-        println!("Unknown key in VFB keys: {}", strkey);
-        humankey = strkey;
-    }
+    let humankey: String = vfb_constants::VFB_KEYS
+        .get(&strkey)
+        .map(|&s| s.to_string())
+        .unwrap_or_else(|| {
+            println!("Unknown key in VFB keys: {}", strkey);
+            strkey
+        });
 
     // Return the entry
     Ok(VfbEntry::new(humankey, size).with_data(bytes, true))

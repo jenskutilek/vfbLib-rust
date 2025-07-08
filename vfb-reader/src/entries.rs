@@ -16,14 +16,14 @@ pub enum VfbEntryTypes {
 /// Dispatch the decompilation to the appropriate function
 pub fn decompile(entry: &VfbEntry) -> Result<Option<VfbEntryTypes>, VfbError> {
     // The entry has no data
-    if entry.data.is_none() {
+    let Some(data) = &entry.data else {
         return Ok(None);
-    }
+    };
 
-    let bytes = &entry.data.as_ref().unwrap().bytes;
+    let bytes = &data.bytes;
 
     // The entry has data, but it is empty
-    if bytes.len() == 0 {
+    if bytes.is_empty() {
         return Ok(None);
     }
 
