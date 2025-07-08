@@ -67,10 +67,7 @@ where
         let buf = self.read_bytes(bytes_to_read)?;
 
         if VFB_UNICODE_STRINGS {
-            let s = match std::str::from_utf8(&buf) {
-                Ok(v) => v,
-                Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
-            };
+            let s = std::str::from_utf8(&buf)?;
             Ok(s.to_string())
         } else {
             let (s, _, _) = WINDOWS_1252.decode(&buf);
