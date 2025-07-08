@@ -2,9 +2,9 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum VfbError {
-    #[error("IO error: {0}")]
+    #[error("Error opening file: {0}")]
     FileOpenError(std::io::Error),
-    #[error("IO error: {0}")]
+    #[error("Error reading from file: {0}")]
     ReadError(#[from] std::io::Error),
     #[error("Bad value: {0}, expected {1}")]
     BadValue(String, String),
