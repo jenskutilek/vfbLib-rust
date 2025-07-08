@@ -1,38 +1,16 @@
 use crate::{
     buffer,
-    entries::{decompile, VfbEntryTypes},
+    entries::{decompile, RawData, VfbEntryType},
     error::VfbError,
     vfb_constants,
 };
-use hex;
 use serde::Serialize;
 use std::io::{prelude::*, BufReader};
 
-pub struct VfbEntryData {
-    pub bytes: Vec<u8>,
-}
-
-impl Serialize for VfbEntryData {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        hex::encode(self.bytes.clone()).serialize(serializer)
-    }
-}
-
-// TODO: Don't serialize size and data if the entry has been decompiled
-// Or skip size always?
-
-#[derive(Serialize)]
-pub enum VfbEntryState {
-    Raw(Vec<u8>),
-    Decompiled(VfbEntryTypes),
-}
 #[derive(Serialize)]
 pub struct VfbEntry {
     pub key: String,
-    pub entry: VfbEntryState,
+    pub entry: VfbEntryType,
 }
 
 impl VfbEntry {
@@ -40,7 +18,7 @@ impl VfbEntry {
     pub fn new_from_data(key: String, data: Vec<u8>, decompile: bool) -> Result<Self, VfbError> {
         let mut slf = Self {
             key,
-            entry: VfbEntryState::Raw(data),
+            entry: VfbEntryType::Raw(RawData(data)),
         };
         if decompile {
             slf.decompile()?;
@@ -49,18 +27,15 @@ impl VfbEntry {
     }
 
     // Build the entry from structured data
-    pub fn new_from_decompiled(key: String, data: VfbEntryTypes) -> Self {
-        Self {
-            key,
-            entry: VfbEntryState::Decompiled(data),
-        }
+    pub fn new_from_decompiled(key: String, entry: VfbEntryType) -> Self {
+        Self { key, entry }
     }
 
     // Decompile the entry and store the result in the entry
     pub fn decompile(&mut self) -> Result<(), VfbError> {
-        if let VfbEntryState::Raw(bytes) = &self.entry {
-            if let Some(decompiled) = decompile(&self.key, bytes)? {
-                self.entry = VfbEntryState::Decompiled(decompiled);
+        if let VfbEntryType::Raw(bytes) = &self.entry {
+            if let Some(decompiled) = decompile(&self.key, &bytes.0)? {
+                self.entry = decompiled;
             }
         }
         Ok(())

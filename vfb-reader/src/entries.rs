@@ -6,15 +6,27 @@ mod encoding;
 mod string;
 mod uint16;
 
+pub struct RawData(pub Vec<u8>);
+
+impl Serialize for RawData {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        hex::encode(self.0.clone()).serialize(serializer)
+    }
+}
+
 #[derive(Serialize)]
-pub enum VfbEntryTypes {
+pub enum VfbEntryType {
+    Raw(RawData),
     Encoding((u16, String)),
     String(String),
     UInt16(u16),
 }
 
 /// Dispatch the decompilation to the appropriate function
-pub fn decompile(key: &str, bytes: &[u8]) -> Result<Option<VfbEntryTypes>, VfbError> {
+pub fn decompile(key: &str, bytes: &[u8]) -> Result<Option<VfbEntryType>, VfbError> {
     // The entry has data, but it is empty
     if bytes.is_empty() {
         return Ok(None);
