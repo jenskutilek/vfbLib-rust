@@ -1,4 +1,4 @@
-use crate::buffer;
+use crate::{buffer, error::VfbError};
 
 use serde::Serialize;
 use std::{collections::HashMap, io::BufReader};
@@ -32,15 +32,15 @@ pub struct Header {
 }
 
 /// Read the header from the buffer and return it as a struct
-pub fn read<R>(r: &mut BufReader<R>) -> Header
+pub fn read<R>(r: &mut BufReader<R>) -> Result<Header, VfbError>
 where
     R: std::io::Read,
 {
-    let header0 = buffer::read_u8(r);
-    let filetype = buffer::read_str(r, 5);
-    let header1 = buffer::read_u16(r);
-    let chunk1_size: u64 = buffer::read_u16(r).try_into().unwrap();
-    let res = buffer::read_bytes(r, chunk1_size);
+    let header0 = buffer::read_u8(r)?;
+    let filetype = buffer::read_str(r, 5)?;
+    let header1 = buffer::read_u16(r)?;
+    let chunk1_size: u64 = buffer::read_u16(r)?.into();
+    let res = buffer::read_bytes(r, chunk1_size)?;
     let chunk1 = Chunk { data: res };
     let chunk1_usize: usize = chunk1_size.try_into().unwrap();
     let last = chunk1.data.as_slice()[chunk1_usize - 1];
@@ -62,11 +62,11 @@ where
 
         // So we ignore all this and just read the key-value map directly from the buffer
         // which terminates at the null byte key:
-        creator = buffer::read_key_value_map(r);
+        creator = buffer::read_key_value_map(r)?;
 
         // Two more u8 fields follow:
-        end0 = buffer::read_u8(r);
-        end1 = buffer::read_u8(r);
+        end0 = buffer::read_u8(r)?;
+        end1 = buffer::read_u8(r)?;
     } else {
         // Older header format, upgrade it. We use a custom version, 5.3.0.1, here.
         creator = HashMap::from([(1, 1), (2, 0x05030001), (3, 0)]);
@@ -74,9 +74,9 @@ where
         end1 = 1;
     }
     // And the final u16 of the header:
-    let end2 = buffer::read_u16(r);
+    let end2 = buffer::read_u16(r)?;
 
-    return Header {
+    Ok(Header {
         header0,
         filetype,
         header1,
@@ -85,5 +85,5 @@ where
         end0,
         end1,
         end2,
-    };
+    })
 }

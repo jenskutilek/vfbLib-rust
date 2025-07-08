@@ -1,12 +1,11 @@
-use crate::buffer;
-use crate::entries::VfbEntryTypes;
+use crate::{buffer, entries::VfbEntryTypes, error::VfbError};
 use std::io::BufReader;
 
-pub fn decompile<R>(r: &mut BufReader<R>) -> Option<VfbEntryTypes>
+pub fn decompile<R>(r: &mut BufReader<R>) -> Result<Option<VfbEntryTypes>, VfbError>
 where
     R: std::io::Read,
 {
-    let string = buffer::read_str_remainder(r);
+    let string = buffer::read_str_remainder(r)?;
 
-    Some(VfbEntryTypes::String(string))
+    Ok(Some(VfbEntryTypes::String(string)))
 }

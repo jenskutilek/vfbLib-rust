@@ -1,7 +1,6 @@
-use crate::entry::VfbEntry;
+use crate::{entry::VfbEntry, error::VfbError};
 use serde::Serialize;
-use std::io::BufReader;
-use std::io::Cursor;
+use std::io::{BufReader, Cursor};
 
 mod encoding;
 mod string;
@@ -15,17 +14,17 @@ pub enum VfbEntryTypes {
 }
 
 /// Dispatch the decompilation to the appropriate function
-pub fn decompile(entry: &VfbEntry) -> Option<VfbEntryTypes> {
+pub fn decompile(entry: &VfbEntry) -> Result<Option<VfbEntryTypes>, VfbError> {
     // The entry has no data
     if entry.data.is_none() {
-        return None;
+        return Ok(None);
     }
 
     let bytes = &entry.data.as_ref().unwrap().bytes;
 
     // The entry has data, but it is empty
     if bytes.len() == 0 {
-        return None;
+        return Ok(None);
     }
 
     // FIXME: Do we actually need to combine Cursor + BufReader?
@@ -100,7 +99,7 @@ pub fn decompile(entry: &VfbEntry) -> Option<VfbEntryTypes> {
         "mark" => uint16::decompile(&mut r),
         "glyph.customdata" => string::decompile(&mut r),
         "glyph.note" => string::decompile(&mut r),
-        _ => None,
+        _ => Ok(None),
     };
     decompiled
 }
