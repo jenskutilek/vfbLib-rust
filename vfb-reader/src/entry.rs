@@ -26,7 +26,6 @@ impl Serialize for VfbEntryData {
 
 #[derive(Serialize)]
 pub enum VfbEntryState {
-    Uninitialized(u32),
     Raw(Vec<u8>),
     Decompiled(VfbEntryTypes),
 }
@@ -37,42 +36,31 @@ pub struct VfbEntry {
 }
 
 impl VfbEntry {
-    pub fn new(key: String, size: u32) -> Self {
-        Self {
-            key,
-            entry: VfbEntryState::Uninitialized(size),
-        }
-    }
-
     // Build the entry from binary data
-    pub fn with_data(mut self, data: Vec<u8>, decompile: bool) -> Result<Self, VfbError> {
-        self.entry = VfbEntryState::Raw(data);
+    pub fn new_from_data(key: String, data: Vec<u8>, decompile: bool) -> Result<Self, VfbError> {
+        let mut slf = Self {
+            key,
+            entry: VfbEntryState::Raw(data),
+        };
         if decompile {
-            self.decompile()?;
+            slf.decompile()?;
         }
-        Ok(self)
+        Ok(slf)
     }
 
     // Build the entry from structured data
-    pub fn with_decompiled(mut self, data: VfbEntryTypes) -> Self {
-        self.entry = VfbEntryState::Decompiled(data);
-        self
+    pub fn new_from_decompiled(key: String, data: VfbEntryTypes) -> Self {
+        Self {
+            key,
+            entry: VfbEntryState::Decompiled(data),
+        }
     }
 
     // Decompile the entry and store the result in the entry
     pub fn decompile(&mut self) -> Result<(), VfbError> {
-        match &self.entry {
-            VfbEntryState::Raw(bytes) => {
-                if let Some(decompiled) = decompile(&self.key, bytes)? {
-                    self.entry = VfbEntryState::Decompiled(decompiled);
-                    return Ok(());
-                }
-            }
-            VfbEntryState::Uninitialized(_) => {
-                return Err(VfbError::UninitializedEntry(self.key.clone()));
-            }
-            VfbEntryState::Decompiled(_) => {
-                // Already decompiled, nothing to do
+        if let VfbEntryState::Raw(bytes) = &self.entry {
+            if let Some(decompiled) = decompile(&self.key, bytes)? {
+                self.entry = VfbEntryState::Decompiled(decompiled);
             }
         }
         Ok(())
@@ -113,5 +101,5 @@ where
         });
 
     // Return the entry
-    VfbEntry::new(humankey, size).with_data(bytes, true)
+    VfbEntry::new_from_data(humankey, bytes, true)
 }
