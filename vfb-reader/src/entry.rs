@@ -23,27 +23,30 @@ impl Serialize for VfbEntryData {
 
 // TODO: Don't serialize size and data if the entry has been decompiled
 // Or skip size always?
+
+#[derive(Serialize)]
+pub enum VfbEntryState {
+    Uninitialized(u32),
+    Raw(Vec<u8>),
+    Decompiled(VfbEntryTypes),
+}
 #[derive(Serialize)]
 pub struct VfbEntry {
     pub key: String,
-    pub size: u32,
-    pub data: Option<VfbEntryData>,
-    pub decompiled: Option<VfbEntryTypes>,
+    pub entry: VfbEntryState,
 }
 
 impl VfbEntry {
     pub fn new(key: String, size: u32) -> Self {
         Self {
             key,
-            size,
-            data: None,
-            decompiled: None,
+            entry: VfbEntryState::Uninitialized(size),
         }
     }
 
     // Build the entry from binary data
     pub fn with_data(mut self, data: Vec<u8>, decompile: bool) -> Result<Self, VfbError> {
-        self.data = Some(VfbEntryData { bytes: data });
+        self.entry = VfbEntryState::Raw(data);
         if decompile {
             self.decompile()?;
         }
@@ -52,13 +55,26 @@ impl VfbEntry {
 
     // Build the entry from structured data
     pub fn with_decompiled(mut self, data: VfbEntryTypes) -> Self {
-        self.decompiled = Some(data);
+        self.entry = VfbEntryState::Decompiled(data);
         self
     }
 
     // Decompile the entry and store the result in the entry
     pub fn decompile(&mut self) -> Result<(), VfbError> {
-        self.decompiled = decompile(self)?;
+        match &self.entry {
+            VfbEntryState::Raw(bytes) => {
+                if let Some(decompiled) = decompile(&self.key, bytes)? {
+                    self.entry = VfbEntryState::Decompiled(decompiled);
+                    return Ok(());
+                }
+            }
+            VfbEntryState::Uninitialized(_) => {
+                return Err(VfbError::UninitializedEntry(self.key.clone()));
+            }
+            VfbEntryState::Decompiled(_) => {
+                // Already decompiled, nothing to do
+            }
+        }
         Ok(())
     }
 }

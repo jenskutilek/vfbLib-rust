@@ -12,4 +12,6 @@ pub enum VfbError {
     Overflow(u32),
     #[error("Invalid UTF-8 sequence: {0}")]
     InvalidUtf8(#[from] std::str::Utf8Error),
+    #[error("Attempted to decompile an entry {0} that has no data")]
+    UninitializedEntry(String),
 }

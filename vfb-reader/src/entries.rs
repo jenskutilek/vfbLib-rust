@@ -1,4 +1,4 @@
-use crate::{entry::VfbEntry, error::VfbError};
+use crate::error::VfbError;
 use serde::Serialize;
 use std::io::{BufReader, Cursor};
 
@@ -14,14 +14,7 @@ pub enum VfbEntryTypes {
 }
 
 /// Dispatch the decompilation to the appropriate function
-pub fn decompile(entry: &VfbEntry) -> Result<Option<VfbEntryTypes>, VfbError> {
-    // The entry has no data
-    let Some(data) = &entry.data else {
-        return Ok(None);
-    };
-
-    let bytes = &data.bytes;
-
+pub fn decompile(key: &str, bytes: &[u8]) -> Result<Option<VfbEntryTypes>, VfbError> {
     // The entry has data, but it is empty
     if bytes.is_empty() {
         return Ok(None);
@@ -31,7 +24,7 @@ pub fn decompile(entry: &VfbEntry) -> Result<Option<VfbEntryTypes>, VfbError> {
     let mut r = BufReader::new(Cursor::new(bytes));
 
     // Match the entry key to the appropriate decompile function, return None for unknown keys
-    let decompiled = match entry.key.as_str() {
+    match key {
         "Encoding Default" => encoding::decompile(&mut r),
         "Encoding" => encoding::decompile(&mut r),
         "1502" => uint16::decompile(&mut r),
@@ -100,6 +93,5 @@ pub fn decompile(entry: &VfbEntry) -> Result<Option<VfbEntryTypes>, VfbError> {
         "glyph.customdata" => string::decompile(&mut r),
         "glyph.note" => string::decompile(&mut r),
         _ => Ok(None),
-    };
-    decompiled
+    }
 }
