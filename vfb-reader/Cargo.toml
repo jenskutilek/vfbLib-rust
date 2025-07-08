@@ -12,8 +12,8 @@ readme = "README.md"
 [dependencies]
 encoding_rs = "0.8.35"
 hex = "0.4.3"
-phf = { version = "0.11.3", features = ["macros"] }
-serde = { version = "1.0.218", features = ["derive"] }
-serde_json = "1.0.139"
+phf = { version = "0.12.1", features = ["macros"] }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
