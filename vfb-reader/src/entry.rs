@@ -42,12 +42,12 @@ impl VfbEntry {
     }
 
     // Build the entry from binary data
-    pub fn with_data(mut self, data: Vec<u8>, decompile: bool) -> Self {
+    pub fn with_data(mut self, data: Vec<u8>, decompile: bool) -> Result<Self, VfbError> {
         self.data = Some(VfbEntryData { bytes: data });
         if decompile {
-            self.decompile();
+            self.decompile()?;
         }
-        self
+        Ok(self)
     }
 
     // Build the entry from structured data
@@ -97,5 +97,5 @@ where
         });
 
     // Return the entry
-    Ok(VfbEntry::new(humankey, size).with_data(bytes, true))
+    VfbEntry::new(humankey, size).with_data(bytes, true)
 }
