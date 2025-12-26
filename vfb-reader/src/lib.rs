@@ -6,7 +6,7 @@ pub mod header;
 mod vfb_constants;
 
 use serde::Serialize;
-use std::fs::File;
+use std::{fs::File, path::PathBuf};
 
 use crate::buffer::VfbReader;
 pub use error::VfbError; // Re-export the error type since we return it
@@ -18,8 +18,8 @@ pub struct Vfb {
     entries: Vec<entry::VfbEntry>,
 }
 
-pub fn read_vfb(path: &str) -> Result<Vfb, VfbError> {
-    let file = File::open(path).map_err(VfbError::FileOpenError)?;
+pub fn read_vfb(path: impl Into<PathBuf>) -> Result<Vfb, VfbError> {
+    let file = File::open(path.into()).map_err(VfbError::FileOpenError)?;
     let mut r = VfbReader::new(file);
     let header = r.read_header()?;
     let mut vfb = Vfb {
