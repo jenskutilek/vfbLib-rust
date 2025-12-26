@@ -8,7 +8,8 @@ mod vfb_constants;
 use serde::Serialize;
 use std::fs::File;
 
-use crate::{buffer::VfbReader, error::VfbError};
+use crate::buffer::VfbReader;
+pub use error::VfbError; // Re-export the error type since we return it
 
 /// The main struct representing the VFB
 #[derive(Serialize)]
