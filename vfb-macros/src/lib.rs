@@ -120,7 +120,8 @@ pub fn derive_vfb_entry(input: TokenStream) -> TokenStream {
                                 Ok(None)
                             } else {
                                 let mut r = crate::buffer::VfbReader::new(bytes);
-                                Ok(Some(#name::#variant_ident(r.#reader_ident()?)))
+                                r.number_of_masters = 1; // XXX
+                                Ok(Some(#name::#variant_ident(r.#reader_ident()?.into())))
                             }
                         }
                     }

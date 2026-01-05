@@ -1,7 +1,10 @@
 mod buffer;
 pub mod entries;
 mod error;
+mod guides;
 pub mod header;
+mod names;
+mod postscript;
 
 use serde::Serialize;
 use std::{fs::File, path::PathBuf};

@@ -10,6 +10,7 @@ const VFB_UNICODE_STRINGS: bool = false;
 
 pub struct VfbReader<R> {
     reader: BufReader<R>,
+    pub(crate) number_of_masters: usize,
 }
 impl<R> VfbReader<R>
 where
@@ -18,6 +19,7 @@ where
     pub fn new(reader: R) -> Self {
         VfbReader {
             reader: BufReader::new(reader),
+            number_of_masters: 1,
         }
     }
 
@@ -122,6 +124,20 @@ where
         Ok(i32::from_le_bytes(buf))
     }
 
+    /// Read a u64 value from a buffer
+    pub fn read_u64(&mut self) -> Result<u64, VfbError> {
+        let mut buf = [0u8; 8];
+        self.reader().read_exact(&mut buf)?;
+        Ok(u64::from_le_bytes(buf))
+    }
+
+    /// Read a i64 value from a buffer
+    pub fn read_i64(&mut self) -> Result<i64, VfbError> {
+        let mut buf = [0u8; 8];
+        self.reader().read_exact(&mut buf)?;
+        Ok(i64::from_le_bytes(buf))
+    }
+
     /// Read an f64 value from a buffer
     pub fn read_f64(&mut self) -> Result<f64, VfbError> {
         let mut buf = [0u8; 8];
@@ -202,18 +218,19 @@ where
 
         Ok((key, entry))
     }
-}
 
-// TODO: Do we need this?
-/// Read n u8 values from a buffer
-// fn read_n_u8<R>(&mut self, n: u8) -> u8
-// where
-//     R: std::io::Read,
-// {
-//     let mut buf = [0u8; n];
-//     r.read_exact(&mut buf).expect("ValueError");
-//     return buf[0];
-// }
+    /// A parser that reads data as Yuri's optimized encoded values. The list of values is
+    /// preceded by a count value that specifies how many values should be read.
+    pub fn read_encoded_value_list(&mut self) -> Result<Vec<i32>, VfbError> {
+        let count = self.read_value()?;
+        let mut values = Vec::with_capacity(count as usize);
+        for _ in 0..count {
+            let v = self.read_value()?;
+            values.push(v);
+        }
+        Ok(values)
+    }
+}
 
 #[cfg(test)]
 mod tests {

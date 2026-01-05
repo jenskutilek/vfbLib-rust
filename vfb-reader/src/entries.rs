@@ -1,4 +1,10 @@
-use crate::{buffer::VfbReader, error::VfbError};
+use crate::{
+    buffer::VfbReader,
+    error::VfbError,
+    guides::Guides,
+    names::NameRecord,
+    postscript::{PostScriptGlobalHintingOptions, PostScriptGlyphHintingOptions},
+};
 use font_types::Tag;
 use serde::Serialize;
 use std::io::Read;
@@ -11,9 +17,7 @@ pub struct BinaryTable((Tag, RawData));
 // Placeholder type aliases for parser-derived types. These will be refined later.
 pub type Panose = RawData;
 pub type VendorId = RawData;
-pub type PostScriptGlobalHintingOptions = RawData;
 pub type EncodedValueListWithCount = RawData;
-pub type Gasp = RawData;
 pub type TrueTypeInfo = RawData;
 pub type Vdmx = RawData;
 pub type TrueTypeStemPpems23 = RawData;
@@ -23,7 +27,6 @@ pub type TrueTypeStemPpems1 = RawData;
 pub type TrueTypeZones = RawData;
 pub type UnicodeRanges = RawData;
 pub type TrueTypeZoneDeltas = RawData;
-pub type NameRecords = RawData;
 pub type CustomCmap = RawData;
 pub type Pclt = RawData;
 pub type OpenTypeMetricsClassFlags = RawData;
@@ -33,7 +36,6 @@ pub type AnisotropicInterpolations = RawData;
 pub type AxisMappingsCount = RawData;
 pub type AxisMappings = RawData;
 pub type PrimaryInstances = RawData;
-pub type GlobalGuides = RawData;
 pub type GlobalMask = RawData;
 pub type Mask = RawData;
 pub type MaskMetrics = RawData;
@@ -44,14 +46,12 @@ pub type BackgroundBitmap = RawData;
 pub type GlyphBitmaps = RawData;
 pub type EncodedValueList = RawData;
 pub type GlyphSketch = RawData;
-pub type PostScriptGlyphHintingOptions = RawData;
 pub type GlyphOrigin = RawData;
 pub type GlyphUnicode = RawData;
 pub type GlyphUnicodesSupp = RawData;
 pub type GlyphGDEF = RawData;
 pub type GlyphAnchorsSupp = RawData;
 pub type GlyphAnchors = RawData;
-pub type Guides = RawData;
 pub type GuideProperties = RawData;
 pub type OpenTypeExportOptions = RawData;
 pub type ExportOptions = RawData;
@@ -112,6 +112,14 @@ where
         let mut remainder = vec![];
         self.reader().read_to_end(&mut remainder)?;
         Ok(BinaryTable((tag, RawData(remainder))))
+    }
+
+    pub fn read_axis_mappings_count(&mut self) -> Result<[u32; 4], VfbError> {
+        let mut counts = [0u32; 4];
+        for entry in counts.iter_mut() {
+            *entry = self.read_u32()?;
+        }
+        Ok(counts)
     }
 }
 
@@ -421,25 +429,25 @@ pub enum VfbEntry {
     #[serde(rename = "xuid_num")]
     XuidNum(i16),
 
-    #[vfb(key = 1093)]
+    #[vfb(key = 1093, reader = "read_u16")]
     #[serde(rename = "PostScript Hinting Options")]
     PostScriptHintingOptions(PostScriptGlobalHintingOptions),
 
-    #[vfb(key = 1068)]
+    #[vfb(key = 1068, reader = "read_encoded_value_list")]
     #[serde(rename = "1068")]
-    E1068(EncodedValueListWithCount),
+    E1068(Vec<i32>),
 
     #[vfb(key = 1264)]
     #[serde(rename = "ttinfo")]
     TtInfo(TrueTypeInfo),
 
-    #[vfb(key = 2021)]
+    #[vfb(key = 2021, reader = "read_u64")]
     #[serde(rename = "unicoderanges")]
-    UnicodeRanges(UnicodeRanges),
+    UnicodeRanges(u64), // Maybe use a bitflags array?
 
-    #[vfb(key = 1138)]
+    #[vfb(key = 1138, reader = "read_namerecords")]
     #[serde(rename = "fontnames")]
-    FontNames(NameRecords),
+    FontNames(Vec<NameRecord>),
 
     #[vfb(key = 1141)]
     #[serde(rename = "Custom CMAPs")]
@@ -465,9 +473,9 @@ pub enum VfbEntry {
     #[serde(rename = "TrueTypeTable")]
     TrueTypeTable(BinaryTable),
 
-    #[vfb(key = 1276)]
+    #[vfb(key = 1276, reader = "read_string")]
     #[serde(rename = "features")]
-    Features(OpenTypeString),
+    Features(String),
 
     #[vfb(key = 513)]
     #[serde(rename = "513")]
@@ -481,9 +489,9 @@ pub enum VfbEntry {
     #[serde(rename = "Anisotropic Interpolation Mappings")]
     AnisotropicInterpolationMappings(AnisotropicInterpolations),
 
-    #[vfb(key = 1515)]
+    #[vfb(key = 1515, reader = "read_axis_mappings_count")]
     #[serde(rename = "Axis Mappings Count")]
-    AxisMappingsCount(AxisMappingsCount),
+    AxisMappingsCount([u32; 4]),
 
     #[vfb(key = 1516)]
     #[serde(rename = "Axis Mappings")]
@@ -501,9 +509,9 @@ pub enum VfbEntry {
     #[serde(rename = "527")]
     E527(RawData),
 
-    #[vfb(key = 1294)]
+    #[vfb(key = 1294, reader = "read_guides")]
     #[serde(rename = "Global Guides")]
-    GlobalGuides(GlobalGuides),
+    GlobalGuides(Guides),
 
     #[vfb(key = 1296)]
     #[serde(rename = "Global Guide Properties")]
@@ -559,7 +567,7 @@ pub enum VfbEntry {
 
     #[vfb(key = 1265)]
     #[serde(rename = "gasp")]
-    Gasp(Gasp),
+    Gasp(RawData),
 
     #[vfb(key = 1271)]
     #[serde(rename = "vdmx")]
@@ -621,7 +629,7 @@ pub enum VfbEntry {
     #[serde(rename = "Glyph Sketch")]
     Sketch(GlyphSketch),
 
-    #[vfb(key = 2010)]
+    #[vfb(key = 2010, reader = "read_u32")]
     #[serde(rename = "Glyph Hinting Options")]
     HintingOptions(PostScriptGlyphHintingOptions),
 
