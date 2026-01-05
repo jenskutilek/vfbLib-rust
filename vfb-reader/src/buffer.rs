@@ -4,7 +4,7 @@ use std::{
     io::{prelude::*, BufReader},
 };
 
-use crate::error::VfbError;
+use crate::{error::VfbError, VfbEntry};
 
 const VFB_UNICODE_STRINGS: bool = false;
 
@@ -155,6 +155,31 @@ where
             return Ok(i32::from_be_bytes(transgender));
         }
         Ok(v)
+    }
+
+    /// Read a VfbEntry from the stream and return it along with its key.
+    /// Returns (key, Option<VfbEntry>) where None indicates an unknown or empty entry.
+    pub fn read_entry(&mut self) -> Result<(u16, Option<VfbEntry>), VfbError> {
+        // Read the key
+        let raw_key = self.read_u16()?;
+        // The raw key may be masked with 0x8000 to indicate a u32 data size
+        let key = raw_key & !0x8000;
+
+        // Read the size
+        let size: u32 = if raw_key & 0x8000 > 0 {
+            self.read_u32()?
+        } else {
+            self.read_u16()?.into()
+        };
+
+        // Read the data
+        let mut bytes: Vec<u8> = vec![0u8; size.try_into().map_err(|_| VfbError::Overflow(size))?];
+        self.reader().read_exact(&mut bytes)?;
+
+        // Parse the entry
+        let entry = VfbEntry::new_from_data(key, &bytes)?;
+
+        Ok((key, entry))
     }
 }
 

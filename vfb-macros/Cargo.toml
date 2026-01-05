@@ -1,0 +1,16 @@
+[package]
+name = "vfb-macros"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-linking-source-exception"
+authors = ["Jens Kutilek <webmail@kutilek.de>"]
+repository = "https://github.com/jenskutilek/vfbLib-rust"
+description = "Procedural macros for VFB format handling"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "2.0", features = ["full"] }
