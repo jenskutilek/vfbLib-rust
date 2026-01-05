@@ -101,11 +101,32 @@ where
         Ok(u16::from_le_bytes(buf))
     }
 
+    /// Read a i16 value from a buffer
+    pub fn read_i16(&mut self) -> Result<i16, VfbError> {
+        let mut buf = [0u8; 2];
+        self.reader().read_exact(&mut buf)?;
+        Ok(i16::from_le_bytes(buf))
+    }
+
     /// Read a u32 value from a buffer
     pub fn read_u32(&mut self) -> Result<u32, VfbError> {
         let mut buf = [0u8; 4];
         self.reader().read_exact(&mut buf)?;
         Ok(u32::from_le_bytes(buf))
+    }
+
+    /// Read a i32 value from a buffer
+    pub fn read_i32(&mut self) -> Result<i32, VfbError> {
+        let mut buf = [0u8; 4];
+        self.reader().read_exact(&mut buf)?;
+        Ok(i32::from_le_bytes(buf))
+    }
+
+    /// Read an f64 value from a buffer
+    pub fn read_f64(&mut self) -> Result<f64, VfbError> {
+        let mut buf = [0u8; 8];
+        self.reader().read_exact(&mut buf)?;
+        Ok(f64::from_le_bytes(buf))
     }
 
     /// Read an "encoded value" from a buffer
