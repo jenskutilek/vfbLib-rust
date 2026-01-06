@@ -12,8 +12,10 @@ use serde::Serialize;
 use std::io::Read;
 use vfb_macros::VfbEntry;
 
+#[derive(Debug)]
 pub struct RawData(pub Vec<u8>);
-#[derive(Serialize)]
+
+#[derive(Serialize, Debug)]
 pub struct BinaryTable((Tag, RawData));
 
 // Placeholder type aliases for parser-derived types. These will be refined later.
@@ -68,12 +70,12 @@ impl Serialize for RawData {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct Encoding(pub (u16, String));
 
 use bitflags::bitflags;
 bitflags! {
-    #[derive(serde::Serialize)]
+    #[derive(Serialize, Debug)]
     pub struct ExportOptions: u16 {
         const USE_CUSTOM_OPENTYPE_EXPORT_OPTIONS = 1 << 0;
         const USE_DEFAULT_OPENTYPE_EXPORT_OPTIONS = 1 << 1;
@@ -136,9 +138,31 @@ impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
         }
         Ok(counts)
     }
+
+    pub fn read_number_of_masters(&mut self) -> Result<u16, Report<VfbError>> {
+        let count = self.read_u16()?;
+        self.number_of_masters = count as usize;
+        Ok(count)
+    }
+
+    pub fn read_panose(&mut self) -> Result<[i8; 10], Report<VfbError>> {
+        let mut panose = [0i8; 10];
+        for entry in panose.iter_mut() {
+            *entry = self.read_i8()?;
+        }
+        Ok(panose)
+    }
+
+    pub fn read_unicode_ranges(&mut self) -> Result<[u32; 4], Report<VfbError>> {
+        let mut ranges = [0u32; 4];
+        for entry in ranges.iter_mut() {
+            *entry = self.read_u32()?;
+        }
+        Ok(ranges)
+    }
 }
 
-#[derive(VfbEntry, Serialize)]
+#[derive(VfbEntry, Serialize, Debug)]
 pub enum VfbEntry {
     #[vfb(key = 1501, reader = "read_encoding")]
     #[serde(rename = "Encoding Default")]
@@ -164,7 +188,7 @@ pub enum VfbEntry {
     #[serde(rename = "font_name")]
     FontName(String),
 
-    #[vfb(key = 1503, reader = "read_u16")]
+    #[vfb(key = 1503, reader = "read_number_of_masters")] // also sets
     #[serde(rename = "Master Count")]
     MasterCount(u16),
 
@@ -244,9 +268,13 @@ pub enum VfbEntry {
     #[serde(rename = "underline_thickness")]
     UnderlineThickness(u16),
 
-    #[vfb(key = 1054, reader = "read_u16")]
+    #[vfb(key = 1054, reader = "read_i16")]
     #[serde(rename = "ms_charset")]
-    MsCharset(u16),
+    MsCharset(i16),
+
+    #[vfb(key = 1118, reader = "read_panose")]
+    #[serde(rename = "panose")]
+    Panose([i8; 10]),
 
     #[vfb(key = 1128, reader = "read_string")]
     #[serde(rename = "tt_version")]
@@ -456,9 +484,9 @@ pub enum VfbEntry {
     #[serde(rename = "ttinfo")]
     TtInfo(TrueTypeInfo),
 
-    #[vfb(key = 2021, reader = "read_u64")]
+    #[vfb(key = 2021, reader = "read_unicode_ranges")]
     #[serde(rename = "unicoderanges")]
-    UnicodeRanges(u64), // Maybe use a bitflags array?
+    UnicodeRanges(Vec<u32>), // Maybe use a bitflags array?
 
     #[vfb(key = 1138, reader = "read_namerecords")]
     #[serde(rename = "fontnames")]

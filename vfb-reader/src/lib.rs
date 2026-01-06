@@ -10,7 +10,7 @@ mod postscript;
 use serde::Serialize;
 use std::{fs::File, path::PathBuf};
 
-use crate::buffer::VfbReader;
+use crate::buffer::{ReadExt, VfbReader};
 pub use entries::VfbEntry;
 pub use error::{ReadContext, Report, VfbError}; // Re-export error types
 
@@ -42,6 +42,12 @@ pub fn read_vfb(path: impl Into<PathBuf>) -> Result<Vfb, Report<VfbError>> {
             // End of file marker (key 5 = EOF), don't include
             break;
         }
+        log::trace!(
+            "Read entry with key: {:?} {:?}",
+            VfbEntry::key_to_variant(key),
+            entry_opt
+        );
+        log::trace!("Current stream position: {:04x?}", r.stream_position());
 
         if let Some(entry) = entry_opt {
             vfb.entries.push(entry);

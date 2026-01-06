@@ -1,11 +1,14 @@
 use encoding_rs::WINDOWS_1252;
-use error_stack::{Report, ResultExt};
+use error_stack::Report;
 use std::{
     collections::HashMap,
     io::{prelude::*, BufReader},
 };
 
-use crate::{error::VfbError, VfbEntry};
+use crate::{
+    error::{AtByteIndex, VfbError},
+    VfbEntry,
+};
 
 const VFB_UNICODE_STRINGS: bool = false;
 
@@ -78,6 +81,14 @@ pub(crate) trait ReadExt {
         Ok(buf[0])
     }
 
+    /// Read a i8 value from a buffer
+    fn read_i8(&mut self) -> Result<i8, Report<VfbError>> {
+        let mut buf = [0u8; 1];
+        self.reader()
+            .read_exact(&mut buf)
+            .map_err(VfbError::ReadError)?;
+        Ok(i8::from_le_bytes(buf))
+    }
     /// Read a u32 value from a buffer
     fn read_u32(&mut self) -> Result<u32, Report<VfbError>> {
         let mut buf = [0u8; 4];
@@ -118,6 +129,7 @@ pub(crate) trait ReadExt {
             Ok(s.to_string())
         } else {
             let (s, _, _) = WINDOWS_1252.decode(&buf);
+            println!("Read a string of length {}: {}", len, s);
             Ok(s.to_string())
         }
     }
@@ -156,10 +168,7 @@ pub(crate) trait ReadExt {
                 "value between 32 and 255".to_string(),
             )
             .into();
-            return Err(report.attach_printable(format!(
-                "at byte index {}",
-                self.stream_position().unwrap_or(0) - 1
-            )));
+            return Err(report).at_index(self);
         } else if v <= 246 {
             // A charstring byte containing a value, v, between 32 and 246 inclusive,
             // indicates the integer v − 139. Thus, the integer values from −107 through 107
@@ -304,10 +313,7 @@ impl<R: std::io::Read + std::io::Seek> VfbReader<R> {
         let mut entry_reader = self.scoped(size as u64);
 
         // Parse the entry
-        let entry = VfbEntry::new_from_reader(key, &mut entry_reader).attach_printable(format!(
-            "while reading {}",
-            VfbEntry::key_to_variant(key).unwrap_or("an unknown key")
-        ))?;
+        let entry = VfbEntry::new_from_reader(key, &mut entry_reader)?;
 
         Ok((key, entry))
     }

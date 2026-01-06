@@ -5,13 +5,13 @@ use crate::{
     VfbError,
 };
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, Debug)]
 pub struct Guide {
     position: i32,
     angle: f32,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, Debug)]
 pub struct Guides {
     horizontal: Vec<Vec<Guide>>,
     vertical: Vec<Vec<Guide>>,

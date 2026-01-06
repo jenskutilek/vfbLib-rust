@@ -1,11 +1,11 @@
 use bitflags::bitflags;
 bitflags! {
-    #[derive(serde::Serialize)]
+    #[derive(serde::Serialize, Debug)]
     pub struct PostScriptGlobalHintingOptions: u16 {
         /// Automatically generate Flex hints in T1 and OT
         const GENERATE_FLEX = 1 << 0;
     }
-    #[derive(serde::Serialize)]
+    #[derive(serde::Serialize, Debug)]
     pub struct PostScriptGlyphHintingOptions: u32 {
         /// Hint Replacement
         const HINT_REPLACEMENT = 1 << 29;

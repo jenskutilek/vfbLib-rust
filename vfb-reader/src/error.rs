@@ -2,6 +2,8 @@ pub use error_stack::Report;
 use std::fmt;
 use thiserror::Error;
 
+use crate::buffer::ReadExt;
+
 #[derive(Error, Debug)]
 pub enum VfbError {
     #[error("Error opening file: {0}")]
@@ -18,6 +20,8 @@ pub enum VfbError {
     UninitializedEntry(String),
     #[error("Invalid glyph header data: {0:?}")]
     InvalidGlyphHeader(Vec<u8>),
+    #[error("Invalid path command: {0}")]
+    InvalidPathCommand(u8),
 }
 
 /// A helper context for building error messages
@@ -27,5 +31,18 @@ pub struct ReadContext(pub String);
 impl fmt::Display for ReadContext {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "while {}", self.0)
+    }
+}
+
+pub(crate) trait AtByteIndex {
+    fn at_index(self, reader: &mut (impl ReadExt + ?Sized)) -> Self;
+}
+
+impl<T> AtByteIndex for Result<T, Report<VfbError>> {
+    fn at_index(self, reader: &mut (impl ReadExt + ?Sized)) -> Self {
+        self.map_err(|e| {
+            let pos = reader.stream_position().unwrap_or(0);
+            e.attach_printable(format!("at byte index {:04x}", pos))
+        })
     }
 }

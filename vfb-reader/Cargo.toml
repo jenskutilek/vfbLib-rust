@@ -20,5 +20,6 @@ serde_json = "1.0.140"
 vfb-macros = { path = "../vfb-macros" }
 font-types = { version = "0.10.1", features = ["serde"] }
 bitflags = { version = "2.10.0", features = ["serde"] }
+log = "0.4.29"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

@@ -150,7 +150,13 @@ pub fn derive_vfb_entry(input: TokenStream) -> TokenStream {
                 match key {
                     #(#new_from_reader_matches),*,
                     _ => Ok(None),
-                }
+                }.map_err(|e|
+                    e.attach_printable(
+                        format!(
+                        "while reading {}",
+                        Self::key_to_variant(key.into()).unwrap_or("an unknown key")
+                    )
+                ))
             }
 
             /// Get variant name from binary key
