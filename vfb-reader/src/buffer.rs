@@ -98,14 +98,14 @@ pub(crate) trait ReadExt {
         Ok(u32::from_le_bytes(buf))
     }
 
-    /// Read a u64 value from a buffer
-    fn read_u64(&mut self) -> Result<u64, Report<VfbError>> {
-        let mut buf = [0u8; 8];
-        self.reader()
-            .read_exact(&mut buf)
-            .map_err(VfbError::ReadError)?;
-        Ok(u64::from_le_bytes(buf))
-    }
+    // /// Read a u64 value from a buffer
+    // fn read_u64(&mut self) -> Result<u64, Report<VfbError>> {
+    //     let mut buf = [0u8; 8];
+    //     self.reader()
+    //         .read_exact(&mut buf)
+    //         .map_err(VfbError::ReadError)?;
+    //     Ok(u64::from_le_bytes(buf))
+    // }
 
     /// Read the specified number of bytes from a buffer and return them as a string
     fn read_str(&mut self, bytes_to_read: u64) -> Result<String, Report<VfbError>> {
@@ -129,7 +129,7 @@ pub(crate) trait ReadExt {
             Ok(s.to_string())
         } else {
             let (s, _, _) = WINDOWS_1252.decode(&buf);
-            println!("Read a string of length {}: {}", len, s);
+            log::trace!("Read a string of length {}: {}", len, s);
             Ok(s.to_string())
         }
     }
@@ -223,6 +223,12 @@ pub(crate) trait ReadExt {
         let mut buf = vec![];
         let mut chunk = self.reader().take(bytes_to_read);
         let _ = chunk.read_to_end(&mut buf).map_err(VfbError::ReadError)?;
+        Ok(buf)
+    }
+
+    fn read_vec_u8_with_value_count(&mut self) -> Result<Vec<u8>, Report<VfbError>> {
+        let len = self.read_value()?;
+        let buf = self.read_bytes(len as u64)?;
         Ok(buf)
     }
 

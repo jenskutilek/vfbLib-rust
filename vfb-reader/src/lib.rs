@@ -6,6 +6,7 @@ mod guides;
 pub mod header;
 mod names;
 mod postscript;
+mod truetype;
 
 use serde::Serialize;
 use std::{fs::File, path::PathBuf};

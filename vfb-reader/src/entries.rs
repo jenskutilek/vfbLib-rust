@@ -1,10 +1,11 @@
 use crate::{
     buffer::{EntryReader, ReadExt},
     error::VfbError,
-    glyph::GlyphEntry,
+    glyph::{Anchor, AnchorsSupplemental, GlyphEntry},
     guides::Guides,
     names::NameRecord,
     postscript::{PostScriptGlobalHintingOptions, PostScriptGlyphHintingOptions},
+    truetype::TrueTypeValue,
 };
 use error_stack::Report;
 use font_types::Tag;
@@ -19,17 +20,14 @@ pub struct RawData(pub Vec<u8>);
 pub struct BinaryTable((Tag, RawData));
 
 // Placeholder type aliases for parser-derived types. These will be refined later.
-pub type Panose = RawData;
 pub type VendorId = RawData;
 pub type EncodedValueListWithCount = RawData;
-pub type TrueTypeInfo = RawData;
 pub type Vdmx = RawData;
 pub type TrueTypeStemPpems23 = RawData;
 pub type TrueTypeStemPpems = RawData;
 pub type TrueTypeStems = RawData;
 pub type TrueTypeStemPpems1 = RawData;
 pub type TrueTypeZones = RawData;
-pub type UnicodeRanges = RawData;
 pub type TrueTypeZoneDeltas = RawData;
 pub type CustomCmap = RawData;
 pub type Pclt = RawData;
@@ -43,18 +41,12 @@ pub type GlobalMask = RawData;
 pub type Mask = RawData;
 pub type MaskMetrics = RawData;
 pub type MaskMetricsMM = RawData;
-pub type Glyph = Vec<GlyphEntry>;
 pub type Link = RawData;
 pub type BackgroundBitmap = RawData;
 pub type GlyphBitmaps = RawData;
 pub type EncodedValueList = RawData;
 pub type GlyphSketch = RawData;
-pub type GlyphOrigin = RawData;
-pub type GlyphUnicode = RawData;
-pub type GlyphUnicodesSupp = RawData;
 pub type GlyphGDEF = RawData;
-pub type GlyphAnchorsSupp = RawData;
-pub type GlyphAnchors = RawData;
 pub type GuideProperties = RawData;
 pub type MappingMode = RawData;
 pub type FL3Type1410 = RawData;
@@ -68,6 +60,12 @@ impl Serialize for RawData {
     {
         hex::encode(self.0.clone()).serialize(serializer)
     }
+}
+
+#[derive(Serialize, Debug)]
+pub struct Links {
+    pub y_links: Vec<(i32, i32)>,
+    pub x_links: Vec<(i32, i32)>,
 }
 
 #[derive(Serialize, Debug)]
@@ -118,6 +116,15 @@ impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
         Ok(list)
     }
 
+    pub fn read_u32_list(&mut self) -> Result<Vec<u32>, Report<VfbError>> {
+        // Just keep reading until the end
+        let mut list = vec![];
+        while let Ok(value) = self.read_u32() {
+            list.push(value);
+        }
+        Ok(list)
+    }
+
     pub fn read_binary_table(&mut self) -> Result<BinaryTable, Report<VfbError>> {
         let mut tag_bytes = [0u8; 4];
         self.inner
@@ -159,6 +166,30 @@ impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
             *entry = self.read_u32()?;
         }
         Ok(ranges)
+    }
+
+    pub fn read_i16_tuple(&mut self) -> Result<(i16, i16), Report<VfbError>> {
+        let first = self.read_i16()?;
+        let second = self.read_i16()?;
+        Ok((first, second))
+    }
+
+    pub fn read_links(&mut self) -> Result<Links, Report<VfbError>> {
+        let y_link_count = self.read_value()? as usize;
+        let mut y_links = Vec::with_capacity(y_link_count);
+        for _ in 0..y_link_count {
+            let link = (self.read_value()?, self.read_value()?);
+            y_links.push(link);
+        }
+
+        let x_link_count = self.read_value()? as usize;
+        let mut x_links = Vec::with_capacity(x_link_count);
+        for _ in 0..x_link_count {
+            let link = (self.read_value()?, self.read_value()?);
+            x_links.push(link);
+        }
+
+        Ok(Links { y_links, x_links })
     }
 }
 
@@ -480,9 +511,9 @@ pub enum VfbEntry {
     #[serde(rename = "1068")]
     E1068(Vec<i32>),
 
-    #[vfb(key = 1264)]
+    #[vfb(key = 1264, reader = "read_truetype_values")]
     #[serde(rename = "ttinfo")]
-    TtInfo(TrueTypeInfo),
+    TtInfo(Vec<TrueTypeValue>),
 
     #[vfb(key = 2021, reader = "read_unicode_ranges")]
     #[serde(rename = "unicoderanges")]
@@ -650,11 +681,11 @@ pub enum VfbEntry {
 
     #[vfb(key = 2001, reader = "read_glyph")]
     #[serde(rename = "Glyph")]
-    Glyph(Glyph),
+    Glyph(Vec<GlyphEntry>),
 
-    #[vfb(key = 2008)]
+    #[vfb(key = 2008, reader = "read_links")]
     #[serde(rename = "Links")]
-    Links(Link),
+    Links(Links),
 
     #[vfb(key = 2007)]
     #[serde(rename = "image")]
@@ -688,29 +719,29 @@ pub enum VfbEntry {
     #[serde(rename = "mask.metrics_mm")]
     MaskMetricsMm(MaskMetricsMM),
 
-    #[vfb(key = 2027)]
+    #[vfb(key = 2027, reader = "read_i16_tuple")]
     #[serde(rename = "Glyph Origin")]
-    Origin(GlyphOrigin),
+    Origin((i16, i16)),
 
-    #[vfb(key = 1250)]
+    #[vfb(key = 1250, reader = "read_int_list")]
     #[serde(rename = "unicodes")]
-    Unicodes(GlyphUnicode),
+    Unicodes(Vec<u16>),
 
-    #[vfb(key = 1253)]
+    #[vfb(key = 1253, reader = "read_u32_list")]
     #[serde(rename = "Glyph Unicode Non-BMP")]
-    UnicodesNonBmp(GlyphUnicodesSupp),
+    UnicodesNonBmp(Vec<u32>),
 
     #[vfb(key = 2018)]
     #[serde(rename = "Glyph GDEF Data")]
     GdefData(GlyphGDEF),
 
-    #[vfb(key = 2020)]
+    #[vfb(key = 2020, reader = "read_anchors_supplemental")]
     #[serde(rename = "Glyph Anchors Supplemental")]
-    AnchorsProperties(GlyphAnchorsSupp),
+    AnchorsProperties(Vec<AnchorsSupplemental>),
 
-    #[vfb(key = 2029)]
+    #[vfb(key = 2029, reader = "read_anchors")]
     #[serde(rename = "Glyph Anchors MM")]
-    AnchorsMm(GlyphAnchors),
+    AnchorsMm(Vec<Vec<Anchor>>),
 
     #[vfb(key = 2031)]
     #[serde(rename = "Glyph Guide Properties")]

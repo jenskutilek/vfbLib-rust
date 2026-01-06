@@ -84,6 +84,18 @@ pub struct Component {
     pub y_scale: Vec<f64>,
 }
 
+#[derive(Serialize, Debug)]
+pub struct Anchor {
+    pub x: i32,
+    pub y: i32,
+}
+
+#[derive(Serialize, Debug)]
+pub struct AnchorsSupplemental {
+    pub hue: i32,
+    pub reserved: i32,
+}
+
 #[derive(VfbEntry, Serialize, Debug)]
 pub enum GlyphEntry {
     #[vfb(key = 1, reader = "read_str_with_len")]
@@ -212,10 +224,10 @@ impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
         // We have our own number of masters. I suspect they're actually what
         // other formats call "layers".
         let number_of_masters = self.read_value()? as usize;
-        println!("Number of masters in glyph outline: {}", number_of_masters);
+        log::trace!("Number of masters in glyph outline: {}", number_of_masters);
         let _ = self.read_value()?; // unknown "node values" field
         let number_of_nodes = self.read_value()? as usize;
-        println!(
+        log::trace!(
             "Number of nodes in glyph outline: {} at stream position {:04x}",
             number_of_nodes,
             self.stream_position().unwrap()
@@ -225,7 +237,7 @@ impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
         let mut cur_pos_y = 0;
         for _ in 0..number_of_nodes {
             let byte = self.read_u8()?;
-            println!("Path node byte: {:08b}", byte);
+            log::trace!("Path node byte: {:08b}", byte);
             let path_command = PathCommand::try_from(byte & 0x0f)
                 .map_err(Report::from)
                 .at_index(self)?;
@@ -305,16 +317,45 @@ impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
             if raw_key == 0xf {
                 break;
             }
-            println!(
+            log::trace!(
                 "Reading {}",
                 GlyphEntry::key_to_variant(u16::from(raw_key)).unwrap_or("an unknown key")
             );
             let entry = GlyphEntry::new_from_reader(u16::from(raw_key), self)?;
             if let Some(e) = entry {
-                println!("Read glyph entry: {:?}", e);
+                log::trace!("Read glyph entry: {:?}", e);
                 entries.push(e);
             }
         }
         Ok(entries)
+    }
+
+    pub fn read_anchors(&mut self) -> Result<Vec<Vec<Anchor>>, Report<VfbError>> {
+        let num_anchors = self.read_value()?;
+        let num_master = self.read_value()?;
+        let mut anchors = vec![];
+        for _ in 0..num_anchors {
+            let mut this_anchor = vec![];
+            for _ in 0..num_master {
+                let x = self.read_value()?;
+                let y = self.read_value()?;
+                this_anchor.push(Anchor { x, y });
+            }
+            anchors.push(this_anchor);
+        }
+        Ok(anchors)
+    }
+
+    pub fn read_anchors_supplemental(
+        &mut self,
+    ) -> Result<Vec<AnchorsSupplemental>, Report<VfbError>> {
+        let num_anchors = self.read_value()?;
+        let mut anchors = vec![];
+        for _ in 0..num_anchors {
+            let hue = self.read_value()?;
+            let reserved = self.read_value()?;
+            anchors.push(AnchorsSupplemental { hue, reserved });
+        }
+        Ok(anchors)
     }
 }

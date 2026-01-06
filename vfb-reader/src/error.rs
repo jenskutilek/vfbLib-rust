@@ -22,6 +22,8 @@ pub enum VfbError {
     InvalidGlyphHeader(Vec<u8>),
     #[error("Invalid path command: {0}")]
     InvalidPathCommand(u8),
+    #[error("Unknown entry key: 0x{key:02x}")]
+    UnknownEntryKey { key: u16 },
 }
 
 /// A helper context for building error messages
