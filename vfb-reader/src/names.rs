@@ -1,6 +1,10 @@
 use encoding_rs::*;
+use error_stack::Report;
 
-use crate::{buffer::VfbReader, VfbError};
+use crate::{
+    buffer::{EntryReader, ReadExt},
+    VfbError,
+};
 
 #[derive(Debug, serde::Serialize)]
 pub struct NameRecord {
@@ -47,11 +51,8 @@ impl NameRecord {
     }
 }
 
-impl<R> VfbReader<R>
-where
-    R: std::io::Read,
-{
-    pub fn read_namerecords(&mut self) -> Result<Vec<NameRecord>, VfbError> {
+impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
+    pub fn read_namerecords(&mut self) -> Result<Vec<NameRecord>, Report<VfbError>> {
         let count = self.read_value()? as usize;
         let mut records = Vec::with_capacity(count);
         for _ in 0..count {

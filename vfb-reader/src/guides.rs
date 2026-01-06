@@ -1,4 +1,9 @@
-use crate::{buffer::VfbReader, VfbError};
+use error_stack::Report;
+
+use crate::{
+    buffer::{EntryReader, ReadExt},
+    VfbError,
+};
 
 #[derive(serde::Serialize)]
 pub struct Guide {
@@ -12,11 +17,8 @@ pub struct Guides {
     vertical: Vec<Vec<Guide>>,
 }
 
-impl<R> VfbReader<R>
-where
-    R: std::io::Read,
-{
-    pub fn read_guides(&mut self) -> Result<Guides, VfbError> {
+impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
+    pub fn read_guides(&mut self) -> Result<Guides, Report<VfbError>> {
         let horizontal_count = self.read_value()? as usize;
         let mut horizontal = Vec::with_capacity(horizontal_count);
         for _ in 0..horizontal_count {

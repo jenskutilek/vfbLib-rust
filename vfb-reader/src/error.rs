@@ -1,3 +1,5 @@
+pub use error_stack::Report;
+use std::fmt;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -14,4 +16,16 @@ pub enum VfbError {
     InvalidUtf8(#[from] std::str::Utf8Error),
     #[error("Attempted to decompile an entry {0} that has no data")]
     UninitializedEntry(String),
+    #[error("Invalid glyph header data: {0:?}")]
+    InvalidGlyphHeader(Vec<u8>),
+}
+
+/// A helper context for building error messages
+#[derive(Debug)]
+pub struct ReadContext(pub String);
+
+impl fmt::Display for ReadContext {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "while {}", self.0)
+    }
 }

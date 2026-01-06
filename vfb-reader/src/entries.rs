@@ -1,10 +1,12 @@
 use crate::{
-    buffer::VfbReader,
+    buffer::{EntryReader, ReadExt},
     error::VfbError,
+    glyph::GlyphEntry,
     guides::Guides,
     names::NameRecord,
     postscript::{PostScriptGlobalHintingOptions, PostScriptGlyphHintingOptions},
 };
+use error_stack::Report;
 use font_types::Tag;
 use serde::Serialize;
 use std::io::Read;
@@ -31,7 +33,6 @@ pub type CustomCmap = RawData;
 pub type Pclt = RawData;
 pub type OpenTypeMetricsClassFlags = RawData;
 pub type OpenTypeKerningClassFlags = RawData;
-pub type OpenTypeString = RawData;
 pub type AnisotropicInterpolations = RawData;
 pub type AxisMappingsCount = RawData;
 pub type AxisMappings = RawData;
@@ -40,7 +41,7 @@ pub type GlobalMask = RawData;
 pub type Mask = RawData;
 pub type MaskMetrics = RawData;
 pub type MaskMetricsMM = RawData;
-pub type Glyph = RawData;
+pub type Glyph = Vec<GlyphEntry>;
 pub type Link = RawData;
 pub type BackgroundBitmap = RawData;
 pub type GlyphBitmaps = RawData;
@@ -53,8 +54,6 @@ pub type GlyphGDEF = RawData;
 pub type GlyphAnchorsSupp = RawData;
 pub type GlyphAnchors = RawData;
 pub type GuideProperties = RawData;
-pub type OpenTypeExportOptions = RawData;
-pub type ExportOptions = RawData;
 pub type MappingMode = RawData;
 pub type FL3Type1410 = RawData;
 pub type MasterLocation = RawData;
@@ -72,22 +71,34 @@ impl Serialize for RawData {
 #[derive(Serialize)]
 pub struct Encoding(pub (u16, String));
 
-impl<R> VfbReader<R>
-where
-    R: std::io::Read,
-{
-    pub fn read_encoding(&mut self) -> Result<Encoding, VfbError> {
+use bitflags::bitflags;
+bitflags! {
+    #[derive(serde::Serialize)]
+    pub struct ExportOptions: u16 {
+        const USE_CUSTOM_OPENTYPE_EXPORT_OPTIONS = 1 << 0;
+        const USE_DEFAULT_OPENTYPE_EXPORT_OPTIONS = 1 << 1;
+        const USE_CUSTOM_CMAP_ENCODING = 1 << 2;
+    }
+}
+impl From<u16> for ExportOptions {
+    fn from(value: u16) -> Self {
+        ExportOptions::from_bits_truncate(value)
+    }
+}
+
+impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
+    pub fn read_encoding(&mut self) -> Result<Encoding, Report<VfbError>> {
         let gid = self.read_u16()?;
         let name = self.read_str_remainder()?;
         Ok(Encoding((gid, name)))
     }
 
     // Not technically necessary but it makes the code read easier
-    pub fn read_string(&mut self) -> Result<String, VfbError> {
+    pub fn read_string(&mut self) -> Result<String, Report<VfbError>> {
         self.read_str_remainder()
     }
 
-    pub fn read_double_list(&mut self) -> Result<Vec<f64>, VfbError> {
+    pub fn read_double_list(&mut self) -> Result<Vec<f64>, Report<VfbError>> {
         // Just keep reading until the end
         let mut list = vec![];
         while let Ok(value) = self.read_f64() {
@@ -96,7 +107,7 @@ where
         Ok(list)
     }
 
-    pub fn read_int_list(&mut self) -> Result<Vec<u16>, VfbError> {
+    pub fn read_int_list(&mut self) -> Result<Vec<u16>, Report<VfbError>> {
         // Just keep reading until the end
         let mut list = vec![];
         while let Ok(value) = self.read_u16() {
@@ -105,16 +116,20 @@ where
         Ok(list)
     }
 
-    pub fn read_binary_table(&mut self) -> Result<BinaryTable, VfbError> {
+    pub fn read_binary_table(&mut self) -> Result<BinaryTable, Report<VfbError>> {
         let mut tag_bytes = [0u8; 4];
-        self.reader().read_exact(&mut tag_bytes)?;
+        self.inner
+            .read_exact(&mut tag_bytes)
+            .map_err(VfbError::ReadError)?;
         let tag = Tag::from_be_bytes(tag_bytes); // or LE?
         let mut remainder = vec![];
-        self.reader().read_to_end(&mut remainder)?;
+        self.inner
+            .read_to_end(&mut remainder)
+            .map_err(VfbError::ReadError)?;
         Ok(BinaryTable((tag, RawData(remainder))))
     }
 
-    pub fn read_axis_mappings_count(&mut self) -> Result<[u32; 4], VfbError> {
+    pub fn read_axis_mappings_count(&mut self) -> Result<[u32; 4], Report<VfbError>> {
         let mut counts = [0u32; 4];
         for entry in counts.iter_mut() {
             *entry = self.read_u32()?;
@@ -523,9 +538,9 @@ pub enum VfbEntry {
 
     #[vfb(key = 1743)]
     #[serde(rename = "OpenType Export Options")]
-    OpenTypeExportOptions(OpenTypeExportOptions),
+    OpenTypeExportOptions(RawData),
 
-    #[vfb(key = 1744)]
+    #[vfb(key = 1744, reader = "read_u16")]
     #[serde(rename = "Export Options")]
     ExportOptions(ExportOptions),
 
@@ -605,7 +620,7 @@ pub enum VfbEntry {
     #[serde(rename = "TrueType Zone Deltas")]
     TrueTypeZoneDeltas(TrueTypeZoneDeltas),
 
-    #[vfb(key = 2001)]
+    #[vfb(key = 2001, reader = "read_glyph")]
     #[serde(rename = "Glyph")]
     Glyph(Glyph),
 

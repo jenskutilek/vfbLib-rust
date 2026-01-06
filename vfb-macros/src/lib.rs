@@ -9,7 +9,7 @@ use syn::{parse_macro_input, Data, DeriveInput, Fields, Meta};
 /// Optionally uses `#[serde(rename = "...")]` for JSON serialization names.
 ///
 /// Generates:
-/// - `new_from_data()` function to construct variants from binary data
+/// - `new_from_reader()` function to construct variants from a reader implementing `EntryReader`
 /// - `key_to_variant()` function to map binary keys to variant names
 /// - `variant_to_key()` function to map variant names back to keys
 #[proc_macro_derive(VfbEntry, attributes(vfb, serde))]
@@ -28,7 +28,7 @@ pub fn derive_vfb_entry(input: TokenStream) -> TokenStream {
 
     let mut key_matches = Vec::new();
     let mut variant_matches = Vec::new();
-    let mut new_from_data_matches = Vec::new();
+    let mut new_from_reader_matches = Vec::new();
 
     for variant in variants {
         // Find the #[vfb(key = ..., reader = "...")] attribute
@@ -101,13 +101,7 @@ pub fn derive_vfb_entry(input: TokenStream) -> TokenStream {
             Fields::Unit => {
                 // Unit variant - no data, return empty variant
                 quote! {
-                    #vfb_key => {
-                        if bytes.is_empty() {
-                            Ok(Some(#name::#variant_ident))
-                        } else {
-                            Ok(None)
-                        }
-                    }
+                    #vfb_key => Ok(Some(#name::#variant_ident))
                 }
             }
             Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
@@ -115,25 +109,16 @@ pub fn derive_vfb_entry(input: TokenStream) -> TokenStream {
                     // Use the explicitly specified reader method
                     let reader_ident = syn::Ident::new(&reader, variant_ident.span());
                     quote! {
-                        #vfb_key => {
-                            if bytes.is_empty() {
-                                Ok(None)
-                            } else {
-                                let mut r = crate::buffer::VfbReader::new(bytes);
-                                r.number_of_masters = 1; // XXX
-                                Ok(Some(#name::#variant_ident(r.#reader_ident()?.into())))
-                            }
-                        }
+                        #vfb_key => reader.#reader_ident()
+                            .map(|v| Some(#name::#variant_ident(v.into())))
                     }
                 } else {
                     // Fallback to RawData for types without explicit reader
+                    // Note: This reads all remaining bytes from the reader
                     quote! {
                         #vfb_key => {
-                            if bytes.is_empty() {
-                                Ok(None)
-                            } else {
-                                Ok(Some(#name::#variant_ident(crate::entries::RawData(bytes.to_vec()))))
-                            }
+                            let bytes = reader.read_bytes_remainder()?;
+                            Ok(Some(#name::#variant_ident(crate::entries::RawData(bytes))))
                         }
                     }
                 }
@@ -146,7 +131,7 @@ pub fn derive_vfb_entry(input: TokenStream) -> TokenStream {
             .into(),
         };
 
-        new_from_data_matches.push(decompile_call);
+        new_from_reader_matches.push(decompile_call);
 
         // Generate match arms for key_to_variant and variant_to_key
         key_matches.push(quote! {
@@ -160,10 +145,10 @@ pub fn derive_vfb_entry(input: TokenStream) -> TokenStream {
 
     let expanded = quote! {
         impl #name {
-            /// Construct a variant from binary data based on the key
-            pub fn new_from_data(key: u16, bytes: &[u8]) -> Result<Option<Self>, crate::error::VfbError> {
+            /// Construct a variant from a reader based on the key
+            pub fn new_from_reader<R: std::io::Read + std::io::Seek>(key: u16, reader: &mut crate::buffer::EntryReader<R>) -> Result<Option<Self>, crate::error::Report<crate::error::VfbError>> {
                 match key {
-                    #(#new_from_data_matches),*,
+                    #(#new_from_reader_matches),*,
                     _ => Ok(None),
                 }
             }

@@ -11,6 +11,7 @@ readme = "README.md"
 
 [dependencies]
 encoding_rs = "0.8.35"
+error-stack = "0.4.1"
 hex = "0.4.3"
 thiserror = "2.0.12"
 phf = { version = "0.12.1", features = ["macros"] }
