@@ -19,7 +19,7 @@ If you look at a VFB with a hex editor, you will see `8B` in many places, which 
 
 ## Header
 
-The file begins with a header that is be version-specific, but the version has apparently stayed at 3.0 even in FontLab Studio 5.2, the latest version before the major rewrite (FL 6+) which introduced a completely new file format (VFC).
+The file begins with a header that is version-specific, but the version has apparently stayed at 3.0 even in FontLab Studio 5.2, the latest version before the major rewrite of version 6 which introduced the completely new VFC file format.
 
 The actual version of the app which created the file is stored further down in the file data.
 
