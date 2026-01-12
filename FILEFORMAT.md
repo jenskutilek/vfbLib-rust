@@ -207,7 +207,7 @@ Here are some examples of real-world entries:
 
 ### FLVersion from FLS 5.2.2-5714 on Windows
 
-Note that the platform is given as macOS even though the file was written on Windows.
+Note that the platform is given as macOS (1) even though the file was written on Windows (0).
 
 ```
 0A 00               u16     type: 10
