@@ -197,7 +197,7 @@ When the original data of an entry is kept around, it can be written back to a n
 
 ## The FLVersion entry
 
-The FLVersion entry is special in that it comes directly after the "start of font" marker, and before the "start of names" marker. It is of type 11.
+The FLVersion entry is special in that it comes directly after the "start of font" marker, and before the "start of names" marker. It is of type 10.
 
 When trying to write VFBs, the entry is relevant because it contains the version of the app that wrote the file, and a platform ID.
 
