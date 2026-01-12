@@ -129,7 +129,7 @@ file_start                        1
         font_info_end           513 = 257 + 256
         mm_font_info_start      271
             AxisCount          1513
-            AxisName          1514
+            AxisName           1514
             ...
         mm_font_info_end        527 = 271 + 256
         GlobalGuides           1294
