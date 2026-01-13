@@ -1,38 +1,60 @@
 mod buffer;
-mod entries;
-pub mod entry;
+pub mod entries;
 mod error;
+mod glyph;
+mod guides;
 pub mod header;
-mod vfb_constants;
+mod names;
+mod postscript;
+mod truetype;
 
 use serde::Serialize;
-use std::fs::File;
+use std::{fs::File, path::PathBuf};
 
-use crate::{buffer::VfbReader, error::VfbError};
+use crate::buffer::{ReadExt, VfbReader};
+pub use entries::VfbEntry;
+pub use error::{ReadContext, Report, VfbError}; // Re-export error types
+pub use glyph::{GlyphEntry, Node};
 
 /// The main struct representing the VFB
 #[derive(Serialize)]
 pub struct Vfb {
-    header: header::Header,
-    entries: Vec<entry::VfbEntry>,
+    pub header: header::Header,
+    pub entries: Vec<VfbEntry>,
 }
 
-pub fn read_vfb(path: &str) -> Result<Vfb, VfbError> {
-    let file = File::open(path).map_err(VfbError::FileOpenError)?;
+pub fn read_vfb(path: impl Into<PathBuf>) -> Result<Vfb, Report<VfbError>> {
+    let file = File::open(path.into())
+        .map_err(VfbError::FileOpenError)
+        .map_err(Report::new)?;
+
     let mut r = VfbReader::new(file);
+
     let header = r.read_header()?;
+
     let mut vfb = Vfb {
         header,
         entries: Vec::new(),
     };
-    let mut entry: entry::VfbEntry;
+
     loop {
-        entry = r.read_entry()?;
-        if entry.key == "EOF" {
-            // End of file, don't include
+        let (key, entry_opt) = r.read_entry()?;
+
+        if key == 5 {
+            // End of file marker (key 5 = EOF), don't include
             break;
         }
-        vfb.entries.push(entry);
+        log::trace!(
+            "Read entry with key: {:?} {:?}",
+            VfbEntry::key_to_variant(key),
+            entry_opt
+        );
+        log::trace!("Current stream position: {:04x?}", r.stream_position());
+
+        if let Some(entry) = entry_opt {
+            vfb.entries.push(entry);
+        }
     }
+
     Ok(vfb)
 }

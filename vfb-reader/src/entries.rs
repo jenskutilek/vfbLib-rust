@@ -1,7 +1,57 @@
-use crate::{buffer::VfbReader, error::VfbError};
+use crate::{
+    buffer::{EntryReader, ReadExt},
+    error::VfbError,
+    glyph::{Anchor, AnchorsSupplemental, GlyphEntry},
+    guides::Guides,
+    names::NameRecord,
+    postscript::{PostScriptGlobalHintingOptions, PostScriptGlyphHintingOptions},
+    truetype::TrueTypeValue,
+};
+use error_stack::Report;
+use font_types::Tag;
 use serde::Serialize;
+use std::io::Read;
+use vfb_macros::VfbEntry;
 
+#[derive(Debug)]
 pub struct RawData(pub Vec<u8>);
+
+#[derive(Serialize, Debug)]
+pub struct BinaryTable((Tag, RawData));
+
+// Placeholder type aliases for parser-derived types. These will be refined later.
+pub type VendorId = RawData;
+pub type EncodedValueListWithCount = RawData;
+pub type Vdmx = RawData;
+pub type TrueTypeStemPpems23 = RawData;
+pub type TrueTypeStemPpems = RawData;
+pub type TrueTypeStems = RawData;
+pub type TrueTypeStemPpems1 = RawData;
+pub type TrueTypeZones = RawData;
+pub type TrueTypeZoneDeltas = RawData;
+pub type CustomCmap = RawData;
+pub type Pclt = RawData;
+pub type OpenTypeMetricsClassFlags = RawData;
+pub type OpenTypeKerningClassFlags = RawData;
+pub type AnisotropicInterpolations = RawData;
+pub type AxisMappingsCount = RawData;
+pub type AxisMappings = RawData;
+pub type PrimaryInstances = RawData;
+pub type GlobalMask = RawData;
+pub type Mask = RawData;
+pub type MaskMetrics = RawData;
+pub type MaskMetricsMM = RawData;
+pub type Link = RawData;
+pub type BackgroundBitmap = RawData;
+pub type GlyphBitmaps = RawData;
+pub type EncodedValueList = RawData;
+pub type GlyphSketch = RawData;
+pub type GlyphGDEF = RawData;
+pub type GuideProperties = RawData;
+pub type MappingMode = RawData;
+pub type FL3Type1410 = RawData;
+pub type MasterLocation = RawData;
+pub type PostScriptInfo = RawData;
 
 impl Serialize for RawData {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -12,115 +62,696 @@ impl Serialize for RawData {
     }
 }
 
-#[derive(Serialize)]
-pub enum VfbEntryType {
-    Raw(RawData),
-    Encoding((u16, String)),
-    String(String),
-    UInt16(u16),
+#[derive(Serialize, Debug)]
+pub struct Links {
+    pub y_links: Vec<(i32, i32)>,
+    pub x_links: Vec<(i32, i32)>,
 }
 
-impl<R> VfbReader<R>
-where
-    R: std::io::Read,
-{
-    pub fn decompile_encoding(&mut self) -> Result<Option<VfbEntryType>, VfbError> {
+#[derive(Serialize, Debug)]
+pub struct Encoding(pub (u16, String));
+
+use bitflags::bitflags;
+bitflags! {
+    #[derive(Serialize, Debug)]
+    pub struct ExportOptions: u16 {
+        const USE_CUSTOM_OPENTYPE_EXPORT_OPTIONS = 1 << 0;
+        const USE_DEFAULT_OPENTYPE_EXPORT_OPTIONS = 1 << 1;
+        const USE_CUSTOM_CMAP_ENCODING = 1 << 2;
+    }
+}
+impl From<u16> for ExportOptions {
+    fn from(value: u16) -> Self {
+        ExportOptions::from_bits_truncate(value)
+    }
+}
+
+impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
+    pub fn read_encoding(&mut self) -> Result<Encoding, Report<VfbError>> {
         let gid = self.read_u16()?;
         let name = self.read_str_remainder()?;
-
-        Ok(Some(VfbEntryType::Encoding((gid, name))))
+        Ok(Encoding((gid, name)))
     }
 
-    pub fn decompile_string(&mut self) -> Result<Option<VfbEntryType>, VfbError> {
-        let string = self.read_str_remainder()?;
-
-        Ok(Some(VfbEntryType::String(string)))
+    // Not technically necessary but it makes the code read easier
+    pub fn read_string(&mut self) -> Result<String, Report<VfbError>> {
+        self.read_str_remainder()
     }
 
-    pub fn decompile_uint16(&mut self) -> Result<Option<VfbEntryType>, VfbError> {
-        let i = self.read_u16()?;
-        Ok(Some(VfbEntryType::UInt16(i)))
+    pub fn read_double_list(&mut self) -> Result<Vec<f64>, Report<VfbError>> {
+        // Just keep reading until the end
+        let mut list = vec![];
+        while let Ok(value) = self.read_f64() {
+            list.push(value);
+        }
+        Ok(list)
+    }
+
+    pub fn read_int_list(&mut self) -> Result<Vec<u16>, Report<VfbError>> {
+        // Just keep reading until the end
+        let mut list = vec![];
+        while let Ok(value) = self.read_u16() {
+            list.push(value);
+        }
+        Ok(list)
+    }
+
+    pub fn read_u32_list(&mut self) -> Result<Vec<u32>, Report<VfbError>> {
+        // Just keep reading until the end
+        let mut list = vec![];
+        while let Ok(value) = self.read_u32() {
+            list.push(value);
+        }
+        Ok(list)
+    }
+
+    pub fn read_binary_table(&mut self) -> Result<BinaryTable, Report<VfbError>> {
+        let mut tag_bytes = [0u8; 4];
+        self.inner
+            .read_exact(&mut tag_bytes)
+            .map_err(VfbError::ReadError)?;
+        let tag = Tag::from_be_bytes(tag_bytes); // or LE?
+        let mut remainder = vec![];
+        self.inner
+            .read_to_end(&mut remainder)
+            .map_err(VfbError::ReadError)?;
+        Ok(BinaryTable((tag, RawData(remainder))))
+    }
+
+    pub fn read_axis_mappings_count(&mut self) -> Result<[u32; 4], Report<VfbError>> {
+        let mut counts = [0u32; 4];
+        for entry in counts.iter_mut() {
+            *entry = self.read_u32()?;
+        }
+        Ok(counts)
+    }
+
+    pub fn read_number_of_masters(&mut self) -> Result<u16, Report<VfbError>> {
+        let count = self.read_u16()?;
+        self.number_of_masters = count as usize;
+        Ok(count)
+    }
+
+    pub fn read_panose(&mut self) -> Result<[i8; 10], Report<VfbError>> {
+        let mut panose = [0i8; 10];
+        for entry in panose.iter_mut() {
+            *entry = self.read_i8()?;
+        }
+        Ok(panose)
+    }
+
+    pub fn read_unicode_ranges(&mut self) -> Result<[u32; 4], Report<VfbError>> {
+        let mut ranges = [0u32; 4];
+        for entry in ranges.iter_mut() {
+            *entry = self.read_u32()?;
+        }
+        Ok(ranges)
+    }
+
+    pub fn read_mm_kern_pair(&mut self) -> Result<[i16; 5], Report<VfbError>> {
+        let mut pair = [0i16; 5];
+        for entry in pair.iter_mut() {
+            *entry = self.read_i16()?;
+        }
+        Ok(pair)
+    }
+
+    pub fn read_i16_tuple(&mut self) -> Result<(i16, i16), Report<VfbError>> {
+        let first = self.read_i16()?;
+        let second = self.read_i16()?;
+        Ok((first, second))
+    }
+
+    pub fn read_links(&mut self) -> Result<Links, Report<VfbError>> {
+        let y_link_count = self.read_value()? as usize;
+        let mut y_links = Vec::with_capacity(y_link_count);
+        for _ in 0..y_link_count {
+            let link = (self.read_value()?, self.read_value()?);
+            y_links.push(link);
+        }
+
+        let x_link_count = self.read_value()? as usize;
+        let mut x_links = Vec::with_capacity(x_link_count);
+        for _ in 0..x_link_count {
+            let link = (self.read_value()?, self.read_value()?);
+            x_links.push(link);
+        }
+
+        Ok(Links { y_links, x_links })
     }
 }
 
-/// Dispatch the decompilation to the appropriate function
-pub fn decompile(key: &str, bytes: &[u8]) -> Result<Option<VfbEntryType>, VfbError> {
-    // The entry has data, but it is empty
-    if bytes.is_empty() {
-        return Ok(None);
-    }
+#[derive(VfbEntry, Serialize, Debug)]
+pub enum VfbEntry {
+    #[vfb(key = 1501, reader = "read_encoding")]
+    #[serde(rename = "Encoding Default")]
+    EncodingDefault(Encoding),
 
-    let mut r = VfbReader::new(bytes);
+    #[vfb(key = 1500, reader = "read_encoding")]
+    #[serde(rename = "Encoding")]
+    Encoding(Encoding),
 
-    // Match the entry key to the appropriate decompile function, return None for unknown keys
-    match key {
-        "Encoding Default" => r.decompile_encoding(),
-        "Encoding" => r.decompile_encoding(),
-        "1502" => r.decompile_uint16(),
-        "518" => r.decompile_string(),
-        "257" => r.decompile_string(),
-        "font_name" => r.decompile_string(),
-        "Master Count" => r.decompile_uint16(),
-        "version" => r.decompile_string(),
-        "notice" => r.decompile_string(),
-        "full_name" => r.decompile_string(),
-        "family_name" => r.decompile_string(),
-        "pref_family_name" => r.decompile_string(),
-        "menu_name" => r.decompile_string(),
-        "apple_name" => r.decompile_string(),
-        "weight" => r.decompile_string(),
-        "width" => r.decompile_string(),
-        "License" => r.decompile_string(),
-        "License URL" => r.decompile_string(),
-        "copyright" => r.decompile_string(),
-        "trademark" => r.decompile_string(),
-        "designer" => r.decompile_string(),
-        "designer_url" => r.decompile_string(),
-        "vendor_url" => r.decompile_string(),
-        "source" => r.decompile_string(),
-        "is_fixed_pitch" => r.decompile_uint16(),
-        "underline_thickness" => r.decompile_uint16(),
-        "ms_charset" => r.decompile_uint16(),
-        "tt_version" => r.decompile_string(),
-        "tt_u_id" => r.decompile_string(),
-        "style_name" => r.decompile_string(),
-        "pref_style_name" => r.decompile_string(),
-        "mac_compatible" => r.decompile_string(),
-        "vendor" => r.decompile_string(),
-        "year" => r.decompile_uint16(),
-        "version_major" => r.decompile_uint16(),
-        "version_minor" => r.decompile_uint16(),
-        "upm" => r.decompile_uint16(),
-        "fond_id" => r.decompile_uint16(),
-        "blue_values_num" => r.decompile_uint16(),
-        "other_blues_num" => r.decompile_uint16(),
-        "family_blues_num" => r.decompile_uint16(),
-        "family_other_blues_num" => r.decompile_uint16(),
-        "stem_snap_h_num" => r.decompile_uint16(),
-        "stem_snap_v_num" => r.decompile_uint16(),
-        "font_style" => r.decompile_uint16(),
-        "pcl_id" => r.decompile_uint16(),
-        "vp_id" => r.decompile_uint16(),
-        "ms_id" => r.decompile_uint16(),
-        "pcl_chars_set" => r.decompile_string(),
-        "hhea_line_gap" => r.decompile_uint16(),
-        "stemsnaplimit" => r.decompile_uint16(),
-        "zoneppm" => r.decompile_uint16(),
-        "codeppm" => r.decompile_uint16(),
-        "1604" => r.decompile_uint16(),
-        "2032" => r.decompile_uint16(),
-        "Export PCLT Table" => r.decompile_uint16(),
-        "note" => r.decompile_string(),
-        "customdata" => r.decompile_string(),
-        "OpenType Class" => r.decompile_string(),
-        "Axis Count" => r.decompile_uint16(),
-        "Axis Name" => r.decompile_string(),
-        "Master Name" => r.decompile_string(),
-        "default_character" => r.decompile_string(),
-        "2034" => r.decompile_string(),
-        "mark" => r.decompile_uint16(),
-        "glyph.customdata" => r.decompile_string(),
-        "glyph.note" => r.decompile_string(),
-        _ => Ok(None),
-    }
+    #[vfb(key = 1502, reader = "read_u16")]
+    #[serde(rename = "mm_encoding_type")]
+    MMEncodingType(u16),
+
+    #[vfb(key = 518, reader = "read_string")]
+    #[serde(rename = "block_names_end")]
+    BlockNamesEnd(String),
+
+    #[vfb(key = 257, reader = "read_string")]
+    #[serde(rename = "block_font_info_start")]
+    BlockFontInfoStart(String),
+
+    #[vfb(key = 1026, reader = "read_string")]
+    #[serde(rename = "font_name")]
+    FontName(String),
+
+    #[vfb(key = 1503, reader = "read_number_of_masters")] // also sets
+    #[serde(rename = "Master Count")]
+    MasterCount(u16),
+
+    #[vfb(key = 1046, reader = "read_string")]
+    #[serde(rename = "version")]
+    Version(String),
+
+    #[vfb(key = 1038, reader = "read_string")]
+    #[serde(rename = "notice")]
+    Notice(String),
+
+    #[vfb(key = 1025, reader = "read_string")]
+    #[serde(rename = "full_name")]
+    FullName(String),
+
+    #[vfb(key = 1027, reader = "read_string")]
+    #[serde(rename = "family_name")]
+    FamilyName(String),
+
+    #[vfb(key = 1024, reader = "read_string")]
+    #[serde(rename = "pref_family_name")]
+    PrefFamilyName(String),
+
+    #[vfb(key = 1056, reader = "read_string")]
+    #[serde(rename = "menu_name")]
+    MenuName(String),
+
+    #[vfb(key = 1092, reader = "read_string")]
+    #[serde(rename = "apple_name")]
+    AppleName(String),
+
+    #[vfb(key = 1028, reader = "read_string")]
+    #[serde(rename = "weight")]
+    Weight(String),
+
+    #[vfb(key = 1065, reader = "read_string")]
+    #[serde(rename = "width")]
+    Width(String),
+
+    #[vfb(key = 1069, reader = "read_string")]
+    #[serde(rename = "License")]
+    License(String),
+
+    #[vfb(key = 1070, reader = "read_string")]
+    #[serde(rename = "License URL")]
+    LicenseUrl(String),
+
+    #[vfb(key = 1037, reader = "read_string")]
+    #[serde(rename = "copyright")]
+    Copyright(String),
+
+    #[vfb(key = 1061, reader = "read_string")]
+    #[serde(rename = "trademark")]
+    Trademark(String),
+
+    #[vfb(key = 1062, reader = "read_string")]
+    #[serde(rename = "designer")]
+    Designer(String),
+
+    #[vfb(key = 1063, reader = "read_string")]
+    #[serde(rename = "designer_url")]
+    DesignerUrl(String),
+
+    #[vfb(key = 1064, reader = "read_string")]
+    #[serde(rename = "vendor_url")]
+    VendorUrl(String),
+
+    #[vfb(key = 1039, reader = "read_string")]
+    #[serde(rename = "source")]
+    Source(String),
+
+    #[vfb(key = 1034, reader = "read_u16")]
+    #[serde(rename = "is_fixed_pitch")]
+    IsFixedPitch(u16),
+
+    #[vfb(key = 1031, reader = "read_u16")]
+    #[serde(rename = "underline_thickness")]
+    UnderlineThickness(u16),
+
+    #[vfb(key = 1054, reader = "read_i16")]
+    #[serde(rename = "ms_charset")]
+    MsCharset(i16),
+
+    #[vfb(key = 1118, reader = "read_panose")]
+    #[serde(rename = "panose")]
+    Panose([i8; 10]),
+
+    #[vfb(key = 1128, reader = "read_string")]
+    #[serde(rename = "tt_version")]
+    TtVersion(String),
+
+    #[vfb(key = 1129, reader = "read_string")]
+    #[serde(rename = "tt_u_id")]
+    TtUId(String),
+
+    #[vfb(key = 1127, reader = "read_string")]
+    #[serde(rename = "style_name")]
+    StyleName(String),
+
+    #[vfb(key = 1137, reader = "read_string")]
+    #[serde(rename = "pref_style_name")]
+    PrefStyleName(String),
+
+    #[vfb(key = 1139, reader = "read_string")]
+    #[serde(rename = "mac_compatible")]
+    MacCompatible(String),
+
+    #[vfb(key = 1121, reader = "read_string")]
+    #[serde(rename = "vendor")]
+    Vendor(String),
+
+    #[vfb(key = 1132, reader = "read_u16")]
+    #[serde(rename = "year")]
+    Year(u16),
+
+    #[vfb(key = 1130, reader = "read_u16")]
+    #[serde(rename = "version_major")]
+    VersionMajor(u16),
+
+    #[vfb(key = 1131, reader = "read_u16")]
+    #[serde(rename = "version_minor")]
+    VersionMinor(u16),
+
+    #[vfb(key = 1135, reader = "read_u16")]
+    #[serde(rename = "upm")]
+    Upm(u16),
+
+    #[vfb(key = 1090, reader = "read_u16")]
+    #[serde(rename = "fond_id")]
+    FondId(u16),
+
+    #[vfb(key = 1530, reader = "read_u16")]
+    #[serde(rename = "blue_values_num")]
+    BlueValuesNum(u16),
+
+    #[vfb(key = 1531, reader = "read_u16")]
+    #[serde(rename = "other_blues_num")]
+    OtherBluesNum(u16),
+
+    #[vfb(key = 1532, reader = "read_u16")]
+    #[serde(rename = "family_blues_num")]
+    FamilyBluesNum(u16),
+
+    #[vfb(key = 1533, reader = "read_u16")]
+    #[serde(rename = "family_other_blues_num")]
+    FamilyOtherBluesNum(u16),
+
+    #[vfb(key = 1534, reader = "read_u16")]
+    #[serde(rename = "stem_snap_h_num")]
+    StemSnapHNum(u16),
+
+    #[vfb(key = 1535, reader = "read_u16")]
+    #[serde(rename = "stem_snap_v_num")]
+    StemSnapVNum(u16),
+
+    #[vfb(key = 1267, reader = "read_u16")]
+    #[serde(rename = "font_style")]
+    FontStyle(u16),
+
+    #[vfb(key = 1057, reader = "read_u16")]
+    #[serde(rename = "pcl_id")]
+    PclId(u16),
+
+    #[vfb(key = 1058, reader = "read_u16")]
+    #[serde(rename = "vp_id")]
+    VpId(u16),
+
+    #[vfb(key = 1060, reader = "read_u16")]
+    #[serde(rename = "ms_id")]
+    MsId(u16),
+
+    #[vfb(key = 1059, reader = "read_string")]
+    #[serde(rename = "pcl_chars_set")]
+    PclCharsSet(String),
+
+    #[vfb(key = 1270, reader = "read_u16")]
+    #[serde(rename = "hhea_line_gap")]
+    HheaLineGap(u16),
+
+    #[vfb(key = 1272, reader = "read_u16")]
+    #[serde(rename = "stemsnaplimit")]
+    StemSnapLimit(u16),
+
+    #[vfb(key = 1274, reader = "read_u16")]
+    #[serde(rename = "zoneppm")]
+    ZonePpm(u16),
+
+    #[vfb(key = 1275, reader = "read_u16")]
+    #[serde(rename = "codeppm")]
+    CodePpm(u16),
+
+    #[vfb(key = 1604, reader = "read_u16")]
+    #[serde(rename = "dropout_ppm")]
+    DropoutPpm(u16),
+
+    #[vfb(key = 2032, reader = "read_u16")]
+    #[serde(rename = "Measurement Line")]
+    MeasurementLine(u16),
+
+    #[vfb(key = 2022, reader = "read_u16")]
+    #[serde(rename = "Export PCLT Table")]
+    ExportPcltTable(u16),
+
+    #[vfb(key = 2025, reader = "read_string")]
+    #[serde(rename = "note")]
+    Note(String),
+
+    #[vfb(key = 2016, reader = "read_string")]
+    #[serde(rename = "customdata")]
+    CustomData(String),
+
+    #[vfb(key = 1277, reader = "read_string")]
+    #[serde(rename = "OpenType Class")]
+    OpenTypeClass(String),
+
+    #[vfb(key = 1513, reader = "read_u16")]
+    #[serde(rename = "Axis Count")]
+    AxisCount(u16),
+
+    #[vfb(key = 1514, reader = "read_string")]
+    #[serde(rename = "Axis Name")]
+    AxisName(String),
+
+    #[vfb(key = 1504, reader = "read_string")]
+    #[serde(rename = "Master Name")]
+    MasterName(String),
+
+    #[vfb(key = 1066, reader = "read_string")]
+    #[serde(rename = "default_character")]
+    DefaultCharacter(String),
+
+    #[vfb(key = 2034, reader = "read_string")]
+    #[serde(rename = "Custom Dict")]
+    CustomDict(String),
+
+    #[vfb(key = 2012, reader = "read_u16")]
+    #[serde(rename = "mark")]
+    Mark(u16),
+
+    #[vfb(key = 2015, reader = "read_string")]
+    #[serde(rename = "glyph.customdata")]
+    GlyphCustomData(String),
+
+    #[vfb(key = 2017, reader = "read_string")]
+    #[serde(rename = "glyph.note")]
+    GlyphNote(String),
+
+    #[vfb(key = 1517, reader = "read_double_list")]
+    #[serde(rename = "Default Weight vector")]
+    WeightVector(Vec<f64>),
+
+    #[vfb(key = 1044, reader = "read_i32")]
+    #[serde(rename = "unique_id")]
+    UniqueId(i32),
+
+    #[vfb(key = 1048, reader = "read_i16")]
+    #[serde(rename = "weight_code")]
+    WeightCode(i16),
+
+    #[vfb(key = 1029, reader = "read_f64")]
+    #[serde(rename = "italic_angle")]
+    ItalicAngle(f64),
+
+    #[vfb(key = 1047, reader = "read_f64")]
+    #[serde(rename = "slant_angle")]
+    SlantAngle(f64),
+
+    #[vfb(key = 1030, reader = "read_i16")]
+    #[serde(rename = "underline_position")]
+    UnderlinePosition(i16),
+
+    #[vfb(key = 1140, reader = "read_string")]
+    #[serde(rename = "sample_text")]
+    SampleText(String),
+
+    #[vfb(key = 1133, reader = "read_int_list")]
+    #[serde(rename = "xuid")]
+    Xuid(Vec<u16>),
+
+    #[vfb(key = 1134, reader = "read_i16")]
+    #[serde(rename = "xuid_num")]
+    XuidNum(i16),
+
+    #[vfb(key = 1093, reader = "read_u16")]
+    #[serde(rename = "PostScript Hinting Options")]
+    PostScriptHintingOptions(PostScriptGlobalHintingOptions),
+
+    #[vfb(key = 1068, reader = "read_encoded_value_list")]
+    #[serde(rename = "collection")]
+    Collection(Vec<i32>),
+
+    #[vfb(key = 1264, reader = "read_truetype_values")]
+    #[serde(rename = "ttinfo")]
+    TtInfo(Vec<TrueTypeValue>),
+
+    #[vfb(key = 2021, reader = "read_unicode_ranges")]
+    #[serde(rename = "unicoderanges")]
+    UnicodeRanges(Vec<u32>), // Maybe use a bitflags array?
+
+    #[vfb(key = 1138, reader = "read_namerecords")]
+    #[serde(rename = "fontnames")]
+    FontNames(Vec<NameRecord>),
+
+    #[vfb(key = 1141)]
+    #[serde(rename = "Custom CMAPs")]
+    CustomCmaps(CustomCmap),
+
+    #[vfb(key = 1136)]
+    #[serde(rename = "PCLT Table")]
+    PcltTable(Pclt),
+
+    #[vfb(key = 2030)]
+    #[serde(rename = "Font Flags")]
+    FontFlags(RawData),
+
+    #[vfb(key = 2024)]
+    #[serde(rename = "OpenType Metrics Class Flags")]
+    MetricsClassFlags(OpenTypeMetricsClassFlags),
+
+    #[vfb(key = 2026)]
+    #[serde(rename = "OpenType Kerning Class Flags")]
+    KerningClassFlags(OpenTypeKerningClassFlags),
+
+    #[vfb(key = 2014, reader = "read_binary_table")]
+    #[serde(rename = "TrueTypeTable")]
+    TrueTypeTable(BinaryTable),
+
+    #[vfb(key = 1276, reader = "read_string")]
+    #[serde(rename = "features")]
+    Features(String),
+
+    #[vfb(key = 513)]
+    #[serde(rename = "Block Font Info End")]
+    BlockFontInfoEnd(RawData),
+
+    #[vfb(key = 271)]
+    #[serde(rename = "Block MM Font Info Start")]
+    BlockMMFontInfoStart(RawData),
+
+    #[vfb(key = 1523)]
+    #[serde(rename = "Anisotropic Interpolation Mappings")]
+    AnisotropicInterpolationMappings(AnisotropicInterpolations),
+
+    #[vfb(key = 1515, reader = "read_axis_mappings_count")]
+    #[serde(rename = "Axis Mappings Count")]
+    AxisMappingsCount([u32; 4]),
+
+    #[vfb(key = 1516)]
+    #[serde(rename = "Axis Mappings")]
+    AxisMappings(AxisMappings),
+
+    #[vfb(key = 1247, reader = "read_double_list")]
+    #[serde(rename = "Primary Instance Locations")]
+    PrimaryInstanceLocations(Vec<f64>),
+
+    #[vfb(key = 1254)]
+    #[serde(rename = "Primary Instances")]
+    PrimaryInstances(PrimaryInstances),
+
+    #[vfb(key = 527)]
+    #[serde(rename = "Block MM Font Info End")]
+    BlockMMFontInfoEnd(RawData),
+
+    #[vfb(key = 1294, reader = "read_guides")]
+    #[serde(rename = "Global Guides")]
+    GlobalGuides(Guides),
+
+    #[vfb(key = 1296)]
+    #[serde(rename = "Global Guide Properties")]
+    GlobalGuideProperties(GuideProperties),
+
+    #[vfb(key = 1295)]
+    #[serde(rename = "Global Mask")]
+    GlobalMask(GlobalMask),
+
+    #[vfb(key = 1743)]
+    #[serde(rename = "OpenType Export Options")]
+    OpenTypeExportOptions(RawData),
+
+    #[vfb(key = 1744, reader = "read_u16")]
+    #[serde(rename = "Export Options")]
+    ExportOptions(ExportOptions),
+
+    #[vfb(key = 1742)]
+    #[serde(rename = "Mapping Mode")]
+    MappingMode(MappingMode),
+
+    #[vfb(key = 272)]
+    #[serde(rename = "Block MM Kerning Start")]
+    BlockMMKerningStart(RawData),
+
+    #[vfb(key = 1410, reader = "read_mm_kern_pair")]
+    #[serde(rename = "MM Kern Pair")]
+    MMKernPair([i16; 5]),
+
+    #[vfb(key = 528)]
+    #[serde(rename = "Block MM Kerning End")]
+    BlockMMKerningEnd(RawData),
+
+    #[vfb(key = 1505)]
+    #[serde(rename = "Master Location")]
+    MasterLocation(MasterLocation),
+
+    #[vfb(key = 1536)]
+    #[serde(rename = "PostScript Info")]
+    PostScriptInfo(PostScriptInfo),
+
+    #[vfb(key = 1261)]
+    #[serde(rename = "cvt")]
+    Cvt(RawData),
+
+    #[vfb(key = 1262)]
+    #[serde(rename = "prep")]
+    Prep(RawData),
+
+    #[vfb(key = 1263)]
+    #[serde(rename = "fpgm")]
+    Fpgm(RawData),
+
+    #[vfb(key = 1265)]
+    #[serde(rename = "gasp")]
+    Gasp(RawData),
+
+    #[vfb(key = 1271)]
+    #[serde(rename = "vdmx")]
+    Vdmx(Vdmx),
+
+    #[vfb(key = 1278, reader = "read_i16")]
+    #[serde(rename = "hhea_ascender")]
+    HheaAscender(i16),
+
+    #[vfb(key = 1279, reader = "read_i16")]
+    #[serde(rename = "hhea_descender")]
+    HheaDescender(i16),
+
+    #[vfb(key = 1266)]
+    #[serde(rename = "TrueType Stem PPEMs 2 And 3")]
+    TrueTypeStemPpems2And3(TrueTypeStemPpems23),
+
+    #[vfb(key = 1268)]
+    #[serde(rename = "TrueType Stem PPEMs")]
+    TrueTypeStemPpems(TrueTypeStemPpems),
+
+    #[vfb(key = 1269)]
+    #[serde(rename = "TrueType Stems")]
+    TrueTypeStems(TrueTypeStems),
+
+    #[vfb(key = 1524)]
+    #[serde(rename = "TrueType Stem PPEMs 1")]
+    TrueTypeStemPpems1(TrueTypeStemPpems1),
+
+    #[vfb(key = 1255)]
+    #[serde(rename = "TrueType Zones")]
+    TrueTypeZones(TrueTypeZones),
+
+    #[vfb(key = 1273)]
+    #[serde(rename = "TrueType Zone Deltas")]
+    TrueTypeZoneDeltas(TrueTypeZoneDeltas),
+
+    #[vfb(key = 2001, reader = "read_glyph")]
+    #[serde(rename = "Glyph")]
+    Glyph(Vec<GlyphEntry>),
+
+    #[vfb(key = 2008, reader = "read_links")]
+    #[serde(rename = "Links")]
+    Links(Links),
+
+    #[vfb(key = 2007)]
+    #[serde(rename = "image")]
+    Image(BackgroundBitmap),
+
+    #[vfb(key = 2013)]
+    #[serde(rename = "Glyph Bitmaps")]
+    Bitmaps(GlyphBitmaps),
+
+    #[vfb(key = 2023)]
+    #[serde(rename = "VSB")]
+    VSB(EncodedValueList),
+
+    #[vfb(key = 2019)]
+    #[serde(rename = "Glyph Sketch")]
+    Sketch(GlyphSketch),
+
+    #[vfb(key = 2010, reader = "read_u32")]
+    #[serde(rename = "Glyph Hinting Options")]
+    HintingOptions(PostScriptGlyphHintingOptions),
+
+    #[vfb(key = 2009)]
+    #[serde(rename = "mask")]
+    Mask(Mask),
+
+    #[vfb(key = 2011)]
+    #[serde(rename = "mask.metrics")]
+    MaskMetrics(MaskMetrics),
+
+    #[vfb(key = 2028)]
+    #[serde(rename = "mask.metrics_mm")]
+    MaskMetricsMm(MaskMetricsMM),
+
+    #[vfb(key = 2027, reader = "read_i16_tuple")]
+    #[serde(rename = "Glyph Origin")]
+    Origin((i16, i16)),
+
+    #[vfb(key = 1250, reader = "read_int_list")]
+    #[serde(rename = "unicodes")]
+    Unicodes(Vec<u16>),
+
+    #[vfb(key = 1253, reader = "read_u32_list")]
+    #[serde(rename = "Glyph Unicode Non-BMP")]
+    UnicodesNonBmp(Vec<u32>),
+
+    #[vfb(key = 2018)]
+    #[serde(rename = "Glyph GDEF Data")]
+    GdefData(GlyphGDEF),
+
+    #[vfb(key = 2020, reader = "read_anchors_supplemental")]
+    #[serde(rename = "Glyph Anchors Supplemental")]
+    AnchorsProperties(Vec<AnchorsSupplemental>),
+
+    #[vfb(key = 2029, reader = "read_anchors")]
+    #[serde(rename = "Glyph Anchors MM")]
+    AnchorsMm(Vec<Vec<Anchor>>),
+
+    #[vfb(key = 2031)]
+    #[serde(rename = "Glyph Guide Properties")]
+    GuideProperties(GuideProperties),
 }

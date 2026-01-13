@@ -1,85 +1,144 @@
 use encoding_rs::WINDOWS_1252;
+use error_stack::Report;
 use std::{
     collections::HashMap,
     io::{prelude::*, BufReader},
 };
 
-use crate::error::VfbError;
+use crate::{
+    error::{AtByteIndex, VfbError},
+    VfbEntry,
+};
 
 const VFB_UNICODE_STRINGS: bool = false;
 
-pub struct VfbReader<R> {
+pub struct VfbReader<R: std::io::Read + std::io::Seek> {
     reader: BufReader<R>,
+    pub(crate) number_of_masters: usize,
 }
-impl<R> VfbReader<R>
-where
-    R: std::io::Read,
-{
-    pub fn new(reader: R) -> Self {
-        VfbReader {
-            reader: BufReader::new(reader),
+
+pub struct EntryReader<'a, R: std::io::Read + std::io::Seek> {
+    pub(crate) inner: std::io::Take<&'a mut BufReader<R>>,
+    pub(crate) number_of_masters: usize,
+    base_position: u64,
+}
+
+impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
+    pub fn new(reader: &'_ mut VfbReader<R>, size: u64) -> EntryReader<'_, R> {
+        let number_of_masters = reader.number_of_masters;
+        let base_position = reader.stream_position().unwrap_or(0);
+        EntryReader {
+            inner: reader.reader().take(size),
+            number_of_masters,
+            base_position,
         }
     }
+}
 
-    pub(crate) fn reader(&mut self) -> &mut BufReader<R> {
-        &mut self.reader
+pub(crate) trait ReadExt {
+    fn reader(&mut self) -> &mut dyn Read;
+    fn stream_position(&mut self) -> Result<u64, std::io::Error>;
+    fn read_i32(&mut self) -> Result<i32, Report<VfbError>> {
+        let mut buf = [0u8; 4];
+        self.reader()
+            .read_exact(&mut buf)
+            .map_err(VfbError::ReadError)?;
+        Ok(i32::from_le_bytes(buf))
     }
 
-    /// Read the specified number of bytes from a buffer
-    pub fn read_bytes(&mut self, bytes_to_read: u64) -> Result<Vec<u8>, VfbError> {
-        let mut buf = vec![];
-        let mut chunk = self.reader().take(bytes_to_read);
-        let _ = chunk.read_to_end(&mut buf)?;
-        Ok(buf)
+    fn read_u16(&mut self) -> Result<u16, Report<VfbError>> {
+        let mut buf = [0u8; 2];
+        self.reader()
+            .read_exact(&mut buf)
+            .map_err(VfbError::ReadError)?;
+        Ok(u16::from_le_bytes(buf))
     }
 
-    /// Read the remaining bytes from a buffer
-    pub fn read_bytes_remainder(&mut self) -> Result<Vec<u8>, VfbError> {
-        let mut buf = vec![];
-        let mut chunk = self.reader().take(0xFFFF);
-        let _ = chunk.read_to_end(&mut buf);
-        Ok(buf)
+    /// Read an f64 value from a buffer
+    fn read_f64(&mut self) -> Result<f64, Report<VfbError>> {
+        let mut buf = [0u8; 8];
+        self.reader()
+            .read_exact(&mut buf)
+            .map_err(VfbError::ReadError)?;
+        Ok(f64::from_le_bytes(buf))
     }
 
-    /// Read a key-value map from a buffer. The keys are u8, the values are
-    /// "encoded values". A key of 0 means the end of the map is reached.
-    ///
-    /// Example:
-    ///
-    /// 01 | 8c
-    /// 02 | ff 05 00 04 80
-    /// 03 | ff 00 00 12 08
-    /// 00
-    /// The final 0 key is not included in the returned HashMap.
-    pub fn read_key_value_map(&mut self) -> Result<HashMap<u8, i32>, VfbError> {
-        let mut map = HashMap::new();
-        let mut k = self.read_u8()?;
-        while k != 0 {
-            let v = self.read_value()?;
-            map.insert(k, v);
-            k = self.read_u8()?;
-        }
-        Ok(map)
+    /// Read a i16 value from a buffer
+    fn read_i16(&mut self) -> Result<i16, Report<VfbError>> {
+        let mut buf = [0u8; 2];
+        self.reader()
+            .read_exact(&mut buf)
+            .map_err(VfbError::ReadError)?;
+        Ok(i16::from_le_bytes(buf))
     }
+
+    /// Read a u8 value from a buffer
+    fn read_u8(&mut self) -> Result<u8, Report<VfbError>> {
+        let mut buf = [0u8; 1];
+        self.reader()
+            .read_exact(&mut buf)
+            .map_err(VfbError::ReadError)?;
+        Ok(buf[0])
+    }
+
+    /// Read a i8 value from a buffer
+    fn read_i8(&mut self) -> Result<i8, Report<VfbError>> {
+        let mut buf = [0u8; 1];
+        self.reader()
+            .read_exact(&mut buf)
+            .map_err(VfbError::ReadError)?;
+        Ok(i8::from_le_bytes(buf))
+    }
+    /// Read a u32 value from a buffer
+    fn read_u32(&mut self) -> Result<u32, Report<VfbError>> {
+        let mut buf = [0u8; 4];
+        self.reader()
+            .read_exact(&mut buf)
+            .map_err(VfbError::ReadError)?;
+        Ok(u32::from_le_bytes(buf))
+    }
+
+    // /// Read a u64 value from a buffer
+    // fn read_u64(&mut self) -> Result<u64, Report<VfbError>> {
+    //     let mut buf = [0u8; 8];
+    //     self.reader()
+    //         .read_exact(&mut buf)
+    //         .map_err(VfbError::ReadError)?;
+    //     Ok(u64::from_le_bytes(buf))
+    // }
 
     /// Read the specified number of bytes from a buffer and return them as a string
-    pub fn read_str(&mut self, bytes_to_read: u64) -> Result<String, VfbError> {
+    fn read_str(&mut self, bytes_to_read: u64) -> Result<String, Report<VfbError>> {
         let buf = self.read_bytes(bytes_to_read)?;
 
         if VFB_UNICODE_STRINGS {
-            let s = std::str::from_utf8(&buf)?;
+            let s = std::str::from_utf8(&buf).map_err(VfbError::InvalidUtf8)?;
             Ok(s.to_string())
         } else {
             let (s, _, _) = WINDOWS_1252.decode(&buf);
+            Ok(s.to_string())
+        }
+    }
+
+    /// Read the length of a string from a buffer and then read the string
+    fn read_str_with_len(&mut self) -> Result<String, Report<VfbError>> {
+        let len = self.read_value()?;
+        let buf = self.read_bytes(len as u64)?;
+        if VFB_UNICODE_STRINGS {
+            let s = std::str::from_utf8(&buf).map_err(VfbError::InvalidUtf8)?;
+            Ok(s.to_string())
+        } else {
+            let (s, _, _) = WINDOWS_1252.decode(&buf);
+            log::trace!("Read a string of length {}: {}", len, s);
             Ok(s.to_string())
         }
     }
 
     /// Read the remaining bytes from a buffer and return them as a string
-    pub fn read_str_remainder(&mut self) -> Result<String, VfbError> {
+    fn read_str_remainder(&mut self) -> Result<String, Report<VfbError>> {
         let buf = self.read_bytes_remainder()?;
         if VFB_UNICODE_STRINGS {
-            let s = std::str::from_utf8(&buf)?;
+            let s = std::str::from_utf8(&buf).map_err(VfbError::InvalidUtf8)?;
             Ok(s.to_string())
         } else {
             let (s, _, _) = WINDOWS_1252.decode(&buf);
@@ -87,41 +146,29 @@ where
         }
     }
 
-    /// Read a u8 value from a buffer
-    pub fn read_u8(&mut self) -> Result<u8, VfbError> {
-        let mut buf = [0u8; 1];
-        self.reader().read_exact(&mut buf)?;
-        Ok(buf[0])
-    }
-
-    /// Read a u16 value from a buffer
-    pub fn read_u16(&mut self) -> Result<u16, VfbError> {
-        let mut buf = [0u8; 2];
-        self.reader().read_exact(&mut buf)?;
-        Ok(u16::from_le_bytes(buf))
-    }
-
-    /// Read a u32 value from a buffer
-    pub fn read_u32(&mut self) -> Result<u32, VfbError> {
-        let mut buf = [0u8; 4];
-        self.reader().read_exact(&mut buf)?;
-        Ok(u32::from_le_bytes(buf))
-    }
+    // /// Read a i64 value from a buffer
+    // pub fn read_i64(&mut self) -> Result<i64, Report<VfbError>> {
+    //     let mut buf = [0u8; 8];
+    //     self.reader().read_exact(&mut buf)?;
+    //     Ok(i64::from_le_bytes(buf))
+    // }
 
     /// Read an "encoded value" from a buffer
     ///
     /// Lifted from the Type 1 font spec:
     /// https://adobe-type-tools.github.io/font-tech-notes/pdfs/T1_SPEC.pdf
     /// Page 48, 6.2 Charstring Number Encoding
-    pub fn read_value(&mut self) -> Result<i32, VfbError> {
+    fn read_value(&mut self) -> Result<i32, Report<VfbError>> {
         // A charstring byte containing the values from 32 through 255 inclusive indicates
         // an integer. These values are decoded in four ranges.
         let v: i32 = self.read_u8()?.into();
         if v < 32 {
-            return Err(VfbError::BadValue(
+            let report: Report<VfbError> = VfbError::BadValue(
                 format!("Invalid charstring byte value: {}", v),
-                "Expected value between 32 and 255".to_string(),
-            ));
+                "value between 32 and 255".to_string(),
+            )
+            .into();
+            return Err(report).at_index(self);
         } else if v <= 246 {
             // A charstring byte containing a value, v, between 32 and 246 inclusive,
             // indicates the integer v − 139. Thus, the integer values from −107 through 107
@@ -151,32 +198,142 @@ where
             // 32-bit signed integer may be encoded in 5 bytes in this manner (the 255 byte
             // plus 4 more bytes).
             let mut transgender = [0u8; std::mem::size_of::<i32>()];
-            self.reader().read_exact(&mut transgender)?;
+            self.reader()
+                .read_exact(&mut transgender)
+                .map_err(VfbError::ReadError)?;
             return Ok(i32::from_be_bytes(transgender));
         }
         Ok(v)
     }
+
+    /// A parser that reads data as Yuri's optimized encoded values. The list of values is
+    /// preceded by a count value that specifies how many values should be read.
+    fn read_encoded_value_list(&mut self) -> Result<Vec<i32>, Report<VfbError>> {
+        let count = self.read_value()?;
+        let mut values = Vec::with_capacity(count as usize);
+        for _ in 0..count {
+            let v = self.read_value()?;
+            values.push(v);
+        }
+        Ok(values)
+    }
+
+    /// Read the specified number of bytes from a buffer
+    fn read_bytes(&mut self, bytes_to_read: u64) -> Result<Vec<u8>, Report<VfbError>> {
+        let mut buf = vec![];
+        let mut chunk = self.reader().take(bytes_to_read);
+        let _ = chunk.read_to_end(&mut buf).map_err(VfbError::ReadError)?;
+        Ok(buf)
+    }
+
+    fn read_vec_u8_with_value_count(&mut self) -> Result<Vec<u8>, Report<VfbError>> {
+        let len = self.read_value()?;
+        let buf = self.read_bytes(len as u64)?;
+        Ok(buf)
+    }
+
+    /// Read the remaining bytes from a buffer
+    fn read_bytes_remainder(&mut self) -> Result<Vec<u8>, Report<VfbError>> {
+        let mut buf = vec![];
+        let mut chunk = self.reader().take(0xFFFF);
+        let _ = chunk.read_to_end(&mut buf);
+        Ok(buf)
+    }
+
+    /// Read a key-value map from a buffer. The keys are u8, the values are
+    /// "encoded values". A key of 0 means the end of the map is reached.
+    ///
+    /// Example:
+    ///
+    /// 01 | 8c
+    /// 02 | ff 05 00 04 80
+    /// 03 | ff 00 00 12 08
+    /// 00
+    /// The final 0 key is not included in the returned HashMap.
+    fn read_key_value_map(&mut self) -> Result<HashMap<u8, i32>, Report<VfbError>> {
+        let mut map = HashMap::new();
+        let mut k = self.read_u8()?;
+        while k != 0 {
+            let v = self.read_value()?;
+            map.insert(k, v);
+            k = self.read_u8()?;
+        }
+        Ok(map)
+    }
 }
 
-// TODO: Do we need this?
-/// Read n u8 values from a buffer
-// fn read_n_u8<R>(&mut self, n: u8) -> u8
-// where
-//     R: std::io::Read,
-// {
-//     let mut buf = [0u8; n];
-//     r.read_exact(&mut buf).expect("ValueError");
-//     return buf[0];
-// }
+impl<R: std::io::Read + std::io::Seek> ReadExt for EntryReader<'_, R> {
+    fn reader(&mut self) -> &mut dyn Read {
+        &mut self.inner
+    }
+
+    fn stream_position(&mut self) -> Result<u64, std::io::Error> {
+        // Get position within this Take reader and add the base position
+        let relative_pos = std::io::Seek::stream_position(&mut self.inner)?;
+        Ok(self.base_position + relative_pos)
+    }
+}
+
+impl<R: std::io::Read + std::io::Seek> ReadExt for VfbReader<R> {
+    fn reader(&mut self) -> &mut dyn Read {
+        &mut self.reader
+    }
+
+    fn stream_position(&mut self) -> Result<u64, std::io::Error> {
+        std::io::Seek::stream_position(&mut self.reader)
+    }
+}
+
+impl<R: std::io::Read + std::io::Seek> VfbReader<R> {
+    pub fn new(reader: R) -> Self {
+        VfbReader {
+            reader: BufReader::new(reader),
+            number_of_masters: 1,
+        }
+    }
+
+    pub(crate) fn reader(&mut self) -> &mut BufReader<R> {
+        &mut self.reader
+    }
+
+    pub(crate) fn scoped(&mut self, size: u64) -> EntryReader<'_, R> {
+        EntryReader::new(self, size)
+    }
+
+    /// Read a VfbEntry from the stream and return it along with its key.
+    /// Returns (key, Option<VfbEntry>) where None indicates an unknown or empty entry.
+    pub fn read_entry(&mut self) -> Result<(u16, Option<VfbEntry>), Report<VfbError>> {
+        // Read the key
+        let raw_key = self.read_u16()?;
+        // The raw key may be masked with 0x8000 to indicate a u32 data size
+        let key = raw_key & !0x8000;
+
+        // Read the size
+        let size: u32 = if raw_key & 0x8000 > 0 {
+            self.read_u32()?
+        } else {
+            self.read_u16()?.into()
+        };
+
+        // Create a new scoped reader
+        let mut entry_reader = self.scoped(size as u64);
+
+        // Parse the entry
+        let entry = VfbEntry::new_from_reader(key, &mut entry_reader)?;
+
+        Ok((key, entry))
+    }
+}
 
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
 
-    use crate::buffer::VfbReader;
+    use crate::buffer::{ReadExt, VfbReader};
+    use std::io::Cursor;
 
-    fn get_reader(bytes: &[u8]) -> VfbReader<&[u8]> {
-        VfbReader::new(bytes)
+    fn get_reader(bytes: &[u8]) -> VfbReader<Cursor<&[u8]>> {
+        VfbReader::new(Cursor::new(bytes))
     }
 
     #[test]
