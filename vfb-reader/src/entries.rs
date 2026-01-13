@@ -168,6 +168,14 @@ impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
         Ok(ranges)
     }
 
+    pub fn read_mm_kern_pair(&mut self) -> Result<[i16; 5], Report<VfbError>> {
+        let mut pair = [0i16; 5];
+        for entry in pair.iter_mut() {
+            *entry = self.read_i16()?;
+        }
+        Ok(pair)
+    }
+
     pub fn read_i16_tuple(&mut self) -> Result<(i16, i16), Report<VfbError>> {
         let first = self.read_i16()?;
         let second = self.read_i16()?;
@@ -204,16 +212,16 @@ pub enum VfbEntry {
     Encoding(Encoding),
 
     #[vfb(key = 1502, reader = "read_u16")]
-    #[serde(rename = "1502")]
-    Unknown1502(u16),
+    #[serde(rename = "mm_encoding_type")]
+    MMEncodingType(u16),
 
-    #[vfb(key = 518)]
-    #[serde(rename = "518")]
-    Unknown518,
+    #[vfb(key = 518, reader = "read_string")]
+    #[serde(rename = "block_names_end")]
+    BlockNamesEnd(String),
 
     #[vfb(key = 257, reader = "read_string")]
-    #[serde(rename = "257")]
-    Unknown257(String),
+    #[serde(rename = "block_font_info_start")]
+    BlockFontInfoStart(String),
 
     #[vfb(key = 1026, reader = "read_string")]
     #[serde(rename = "font_name")]
@@ -412,12 +420,12 @@ pub enum VfbEntry {
     CodePpm(u16),
 
     #[vfb(key = 1604, reader = "read_u16")]
-    #[serde(rename = "1604")]
-    Unknown1604(u16),
+    #[serde(rename = "dropout_ppm")]
+    DropoutPpm(u16),
 
     #[vfb(key = 2032, reader = "read_u16")]
-    #[serde(rename = "2032")]
-    Unknown2032(u16),
+    #[serde(rename = "Measurement Line")]
+    MeasurementLine(u16),
 
     #[vfb(key = 2022, reader = "read_u16")]
     #[serde(rename = "Export PCLT Table")]
@@ -452,8 +460,8 @@ pub enum VfbEntry {
     DefaultCharacter(String),
 
     #[vfb(key = 2034, reader = "read_string")]
-    #[serde(rename = "2034")]
-    Unknown2034(String),
+    #[serde(rename = "Custom Dict")]
+    CustomDict(String),
 
     #[vfb(key = 2012, reader = "read_u16")]
     #[serde(rename = "mark")]
@@ -491,9 +499,9 @@ pub enum VfbEntry {
     #[serde(rename = "underline_position")]
     UnderlinePosition(i16),
 
-    #[vfb(key = 1140)]
-    #[serde(rename = "1140")]
-    E1140(RawData),
+    #[vfb(key = 1140, reader = "read_string")]
+    #[serde(rename = "sample_text")]
+    SampleText(String),
 
     #[vfb(key = 1133, reader = "read_int_list")]
     #[serde(rename = "xuid")]
@@ -508,8 +516,8 @@ pub enum VfbEntry {
     PostScriptHintingOptions(PostScriptGlobalHintingOptions),
 
     #[vfb(key = 1068, reader = "read_encoded_value_list")]
-    #[serde(rename = "1068")]
-    E1068(Vec<i32>),
+    #[serde(rename = "collection")]
+    Collection(Vec<i32>),
 
     #[vfb(key = 1264, reader = "read_truetype_values")]
     #[serde(rename = "ttinfo")]
@@ -532,8 +540,8 @@ pub enum VfbEntry {
     PcltTable(Pclt),
 
     #[vfb(key = 2030)]
-    #[serde(rename = "2030")]
-    E2030(RawData),
+    #[serde(rename = "Font Flags")]
+    FontFlags(RawData),
 
     #[vfb(key = 2024)]
     #[serde(rename = "OpenType Metrics Class Flags")]
@@ -552,12 +560,12 @@ pub enum VfbEntry {
     Features(String),
 
     #[vfb(key = 513)]
-    #[serde(rename = "513")]
-    E513(RawData),
+    #[serde(rename = "Block Font Info End")]
+    BlockFontInfoEnd(RawData),
 
     #[vfb(key = 271)]
-    #[serde(rename = "271")]
-    E271(RawData),
+    #[serde(rename = "Block MM Font Info Start")]
+    BlockMMFontInfoStart(RawData),
 
     #[vfb(key = 1523)]
     #[serde(rename = "Anisotropic Interpolation Mappings")]
@@ -580,8 +588,8 @@ pub enum VfbEntry {
     PrimaryInstances(PrimaryInstances),
 
     #[vfb(key = 527)]
-    #[serde(rename = "527")]
-    E527(RawData),
+    #[serde(rename = "Block MM Font Info End")]
+    BlockMMFontInfoEnd(RawData),
 
     #[vfb(key = 1294, reader = "read_guides")]
     #[serde(rename = "Global Guides")]
@@ -608,16 +616,16 @@ pub enum VfbEntry {
     MappingMode(MappingMode),
 
     #[vfb(key = 272)]
-    #[serde(rename = "272")]
-    E272(RawData),
+    #[serde(rename = "Block MM Kerning Start")]
+    BlockMMKerningStart(RawData),
 
-    #[vfb(key = 1410)]
-    #[serde(rename = "1410")]
-    E1410(FL3Type1410),
+    #[vfb(key = 1410, reader = "read_mm_kern_pair")]
+    #[serde(rename = "MM Kern Pair")]
+    MMKernPair([i16; 5]),
 
     #[vfb(key = 528)]
-    #[serde(rename = "528")]
-    E528(RawData),
+    #[serde(rename = "Block MM Kerning End")]
+    BlockMMKerningEnd(RawData),
 
     #[vfb(key = 1505)]
     #[serde(rename = "Master Location")]
@@ -696,8 +704,8 @@ pub enum VfbEntry {
     Bitmaps(GlyphBitmaps),
 
     #[vfb(key = 2023)]
-    #[serde(rename = "2023")]
-    E2023(EncodedValueList),
+    #[serde(rename = "VSB")]
+    VSB(EncodedValueList),
 
     #[vfb(key = 2019)]
     #[serde(rename = "Glyph Sketch")]

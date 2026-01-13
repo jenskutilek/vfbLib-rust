@@ -14,7 +14,7 @@ use std::{fs::File, path::PathBuf};
 use crate::buffer::{ReadExt, VfbReader};
 pub use entries::VfbEntry;
 pub use error::{ReadContext, Report, VfbError}; // Re-export error types
-pub use glyph::GlyphEntry;
+pub use glyph::{GlyphEntry, Node};
 
 /// The main struct representing the VFB
 #[derive(Serialize)]
