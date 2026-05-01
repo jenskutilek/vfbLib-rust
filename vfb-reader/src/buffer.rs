@@ -10,26 +10,28 @@ use crate::{
     VfbEntry,
 };
 
-const VFB_UNICODE_STRINGS: bool = false;
-
 pub struct VfbReader<R: std::io::Read + std::io::Seek> {
     reader: BufReader<R>,
     pub(crate) number_of_masters: usize,
+    pub(crate) decode_utf8: bool,
 }
 
 pub struct EntryReader<'a, R: std::io::Read + std::io::Seek> {
     pub(crate) inner: std::io::Take<&'a mut BufReader<R>>,
     pub(crate) number_of_masters: usize,
+    pub(crate) decode_utf8: bool,
     base_position: u64,
 }
 
 impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
     pub fn new(reader: &'_ mut VfbReader<R>, size: u64) -> EntryReader<'_, R> {
         let number_of_masters = reader.number_of_masters;
+        let decode_utf8 = reader.decode_utf8;
         let base_position = reader.stream_position().unwrap_or(0);
         EntryReader {
             inner: reader.reader().take(size),
             number_of_masters,
+            decode_utf8,
             base_position,
         }
     }
@@ -37,6 +39,7 @@ impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
 
 pub(crate) trait ReadExt {
     fn reader(&mut self) -> &mut dyn Read;
+    fn decode_utf8(&self) -> bool;
     fn stream_position(&mut self) -> Result<u64, std::io::Error>;
     fn read_i32(&mut self) -> Result<i32, Report<VfbError>> {
         let mut buf = [0u8; 4];
@@ -111,7 +114,7 @@ pub(crate) trait ReadExt {
     fn read_str(&mut self, bytes_to_read: u64) -> Result<String, Report<VfbError>> {
         let buf = self.read_bytes(bytes_to_read)?;
 
-        if VFB_UNICODE_STRINGS {
+        if self.decode_utf8() {
             let s = std::str::from_utf8(&buf).map_err(VfbError::InvalidUtf8)?;
             Ok(s.to_string())
         } else {
@@ -124,7 +127,7 @@ pub(crate) trait ReadExt {
     fn read_str_with_len(&mut self) -> Result<String, Report<VfbError>> {
         let len = self.read_value()?;
         let buf = self.read_bytes(len as u64)?;
-        if VFB_UNICODE_STRINGS {
+        if self.decode_utf8() {
             let s = std::str::from_utf8(&buf).map_err(VfbError::InvalidUtf8)?;
             Ok(s.to_string())
         } else {
@@ -137,7 +140,7 @@ pub(crate) trait ReadExt {
     /// Read the remaining bytes from a buffer and return them as a string
     fn read_str_remainder(&mut self) -> Result<String, Report<VfbError>> {
         let buf = self.read_bytes_remainder()?;
-        if VFB_UNICODE_STRINGS {
+        if self.decode_utf8() {
             let s = std::str::from_utf8(&buf).map_err(VfbError::InvalidUtf8)?;
             Ok(s.to_string())
         } else {
@@ -267,6 +270,10 @@ impl<R: std::io::Read + std::io::Seek> ReadExt for EntryReader<'_, R> {
         &mut self.inner
     }
 
+    fn decode_utf8(&self) -> bool {
+        self.decode_utf8
+    }
+
     fn stream_position(&mut self) -> Result<u64, std::io::Error> {
         // Get position within this Take reader and add the base position
         let relative_pos = std::io::Seek::stream_position(&mut self.inner)?;
@@ -279,6 +286,10 @@ impl<R: std::io::Read + std::io::Seek> ReadExt for VfbReader<R> {
         &mut self.reader
     }
 
+    fn decode_utf8(&self) -> bool {
+        self.decode_utf8
+    }
+
     fn stream_position(&mut self) -> Result<u64, std::io::Error> {
         std::io::Seek::stream_position(&mut self.reader)
     }
@@ -289,6 +300,7 @@ impl<R: std::io::Read + std::io::Seek> VfbReader<R> {
         VfbReader {
             reader: BufReader::new(reader),
             number_of_masters: 1,
+            decode_utf8: true,
         }
     }
 
@@ -320,6 +332,10 @@ impl<R: std::io::Read + std::io::Seek> VfbReader<R> {
 
         // Parse the entry
         let entry = VfbEntry::new_from_reader(key, &mut entry_reader)?;
+        if let Some(VfbEntry::FlVersion(fl_version)) = &entry {
+            // Match Python behavior: macOS writer uses UTF-8, Windows uses CP1252.
+            self.decode_utf8 = fl_version.platform == "macos";
+        }
 
         Ok((key, entry))
     }
@@ -379,6 +395,31 @@ mod tests {
     #[test]
     fn test_value_2b_0xf801() {
         assert_eq!(get_reader(&[0xf8, 0x01]).read_value().unwrap(), 365i32);
+    }
+
+    #[test]
+    fn test_encoding_switches_from_fl_version_platform() {
+        let mut data = Vec::new();
+
+        // FL Version entry (key 10), platform = windows (value 0), then END.
+        data.extend_from_slice(&10u16.to_le_bytes());
+        data.extend_from_slice(&3u16.to_le_bytes());
+        data.extend_from_slice(&[1u8, 0x8b, 0u8]);
+
+        // font_name entry (key 1026), string bytes in CP1252: caf\xE9.
+        data.extend_from_slice(&1026u16.to_le_bytes());
+        data.extend_from_slice(&4u16.to_le_bytes());
+        data.extend_from_slice(&[0x63, 0x61, 0x66, 0xE9]);
+
+        let mut reader = VfbReader::new(Cursor::new(data));
+        let _ = reader.read_entry().unwrap();
+        let (_, entry) = reader.read_entry().unwrap();
+        match entry {
+            Some(crate::entries::VfbEntry::FontName(name)) => {
+                assert_eq!(name, "caf\u{00E9}");
+            }
+            other => panic!("Unexpected entry: {:?}", other),
+        }
     }
 
     #[test]

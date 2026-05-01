@@ -71,6 +71,13 @@ pub struct Links {
 #[derive(Serialize, Debug)]
 pub struct Encoding(pub (u16, String));
 
+#[derive(Serialize, Debug)]
+pub struct FlVersion {
+    pub platform: String,
+    pub version: (u8, u8, u8, u8),
+    pub owner: i32,
+}
+
 use bitflags::bitflags;
 bitflags! {
     #[derive(Serialize, Debug)]
@@ -87,6 +94,45 @@ impl From<u16> for ExportOptions {
 }
 
 impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
+    pub fn read_fl_version(&mut self) -> Result<FlVersion, Report<VfbError>> {
+        let mut platform = "macos".to_string();
+        let mut version = (5, 2, 2, 128);
+        let mut owner = 0;
+
+        loop {
+            let key = self.read_u8()?;
+            if key == 0 {
+                break;
+            }
+            let value = self.read_value()?;
+            match key {
+                1 => {
+                    platform = if value == 0 {
+                        "windows".to_string()
+                    } else {
+                        "macos".to_string()
+                    };
+                }
+                2 => {
+                    version = (
+                        ((value >> 24) & 0xFF) as u8,
+                        ((value >> 16) & 0xFF) as u8,
+                        ((value >> 8) & 0xFF) as u8,
+                        (value & 0xFF) as u8,
+                    );
+                }
+                3 => owner = value,
+                _ => {}
+            }
+        }
+
+        Ok(FlVersion {
+            platform,
+            version,
+            owner,
+        })
+    }
+
     pub fn read_encoding(&mut self) -> Result<Encoding, Report<VfbError>> {
         let gid = self.read_u16()?;
         let name = self.read_str_remainder()?;
@@ -203,6 +249,10 @@ impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
 
 #[derive(VfbEntry, Serialize, Debug)]
 pub enum VfbEntry {
+    #[vfb(key = 10, reader = "read_fl_version")]
+    #[serde(rename = "FL Version")]
+    FlVersion(FlVersion),
+
     #[vfb(key = 1501, reader = "read_encoding")]
     #[serde(rename = "Encoding Default")]
     EncodingDefault(Encoding),
@@ -604,8 +654,8 @@ pub enum VfbEntry {
     GlobalMask(GlobalMask),
 
     #[vfb(key = 1743)]
-    #[serde(rename = "OpenType Export Options")]
-    OpenTypeExportOptions(RawData),
+    #[serde(rename = "Font Options")]
+    FontOptions(RawData),
 
     #[vfb(key = 1744, reader = "read_u16")]
     #[serde(rename = "Export Options")]
