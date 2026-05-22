@@ -342,16 +342,9 @@ impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
                     });
                 }
                 PathCommand::QCurve => {
-                    let mut c1_points = vec![];
-                    for _ in 0..number_of_masters {
-                        let (x_delta, y_delta) = (self.read_value()?, self.read_value()?);
-                        cur_pos_x += x_delta;
-                        cur_pos_y += y_delta;
-                        c1_points.push((cur_pos_x, cur_pos_y));
-                    }
                     nodes.push(Node::QCurve {
                         coords: points,
-                        c1_coords: c1_points,
+                        c1_coords: vec![],
                         flags,
                     });
                 }
