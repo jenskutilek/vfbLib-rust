@@ -113,13 +113,68 @@ pub enum GlyphEntry {
     Kerning(HashMap<i32, Vec<i32>>),
     #[vfb(key = 8, reader = "read_outlines")]
     Outlines(Vec<Node>),
-    #[vfb(key = 9)]
+    #[vfb(key = 9, reader = "read_binary")]
     Binary(RawData),
-    #[vfb(key = 10)]
+    #[vfb(key = 10, reader = "read_instructions")]
     Instructions(RawData),
 }
 
 impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
+    fn read_binary(&mut self) -> Result<RawData, Report<VfbError>> {
+        loop {
+            let key = self.read_u8()?;
+            match key {
+                0x28 => break,
+                0x29 => {
+                    let _ = self.read_value()?; // width
+                    let _ = self.read_value()?; // lsb
+                    let _ = self.read_value()?; // unknown1
+                    let _ = self.read_value()?; // unknown2
+                    let _ = self.read_value()?; // unknown3
+                    for _ in 0..4 {
+                        let _ = self.read_value()?; // bbox values
+                    }
+                }
+                0x2a => {
+                    let num_contours = self.read_value()?;
+                    let contour_count = if num_contours > 0 {
+                        num_contours as usize
+                    } else {
+                        0
+                    };
+                    for _ in 0..contour_count {
+                        let _ = self.read_value()?; // contour endpoints
+                    }
+                    let num_nodes = self.read_value()?;
+                    let node_count = if num_nodes > 0 { num_nodes as usize } else { 0 };
+                    for _ in 0..node_count {
+                        let _ = self.read_value()?; // x delta
+                        let _ = self.read_value()?; // y delta
+                        let _ = self.read_u8()?; // flags
+                    }
+                }
+                0x2b => {
+                    let num_bytes = self.read_value()?;
+                    let byte_count = if num_bytes > 0 { num_bytes as u64 } else { 0 };
+                    let _ = self.read_bytes(byte_count)?;
+                }
+                0x2c => {
+                    let num = self.read_value()?;
+                    let byte_count = if num > 0 { num as u64 } else { 0 };
+                    let _ = self.read_bytes(byte_count)?;
+                }
+                _ => return Err(VfbError::UnknownEntryKey { key: key as u16 }.into()),
+            }
+        }
+
+        Ok(RawData(Vec::new()))
+    }
+
+    fn read_instructions(&mut self) -> Result<RawData, Report<VfbError>> {
+        let bytes = self.read_vec_u8_with_value_count()?;
+        Ok(RawData(bytes))
+    }
+
     fn read_glyph_metrics(&mut self) -> Result<Vec<(i32, i32)>, Report<VfbError>> {
         let count = self.number_of_masters;
         let mut metrics = Vec::with_capacity(count);
