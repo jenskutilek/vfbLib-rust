@@ -1,5 +1,7 @@
 use crate::{buffer::VfbReader, error::VfbError};
 
+use crate::buffer::ReadExt;
+use error_stack::Report;
 use serde::Serialize;
 use std::collections::HashMap;
 
@@ -31,12 +33,9 @@ pub struct Header {
     end2: u16,
 }
 
-impl<R> VfbReader<R>
-where
-    R: std::io::Read,
-{
+impl<R: std::io::Read + std::io::Seek> VfbReader<R> {
     /// Read the header from the buffered reader
-    pub fn read_header(&mut self) -> Result<Header, VfbError> {
+    pub fn read_header(&mut self) -> Result<Header, Report<VfbError>> {
         let header0 = self.read_u8()?;
         let filetype = self.read_str(5)?;
         let header1 = self.read_u16()?;

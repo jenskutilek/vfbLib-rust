@@ -9,5 +9,6 @@ strip = true
 resolver = "2"
 
 members = [
+    "vfb-macros",
     "vfb-reader"
 ]
