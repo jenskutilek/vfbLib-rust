@@ -158,10 +158,10 @@ file_end                          2
 ### Entry with a data size greater than 0 and less than or equal to `u16::MAX` (65535)
 
 ```
-DD 05               u16     1501  entry key (1501: "Encoding Default")
-06 00               u16     6     entry data length
+DD 05               u16     1501   entry key (1501: "Encoding Default")
+06 00               u16     6      entry data length
 --------------- start of 6-byte chunk (entry-specific format)
-34 00               u16     52 (glyph index in encoding)
+34 00               u16     52     (glyph index in encoding)
 66 6F 75 72         string  "four" (glyph name in encoding)
 --------------- end of 6-byte chunk
 ```
@@ -174,8 +174,8 @@ If bit 15 is set in the entry key, it means that the entry data length that foll
 DD 85               u16     32768 + 1501  entry key (1501: "Encoding Default")
 06 00 00 00         u32     6             entry data length
 --------------- start of 6-byte chunk (entry-specific format)
-34 00               u16     52 (glyph index in encoding)
-66 6F 75 72         string  "four" (glyph name in encoding)
+34 00               u16     52            (glyph index in encoding)
+66 6F 75 72         string  "four"        (glyph name in encoding)
 --------------- end of 6-byte chunk
 ```
 
