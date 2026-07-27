@@ -247,11 +247,17 @@ pub(crate) trait ReadExt {
         Ok(buf)
     }
 
-    /// Read the remaining bytes from a buffer
+    /// Read the remaining bytes of the current entry.
+    ///
+    /// The reader is scoped to the entry's declared size (a `Take`), so this reads to the end of
+    /// that scope. It must NOT impose its own byte cap: entries such as OpenType feature code
+    /// routinely exceed 64 KB, and a smaller cap leaves bytes unread and desyncs every subsequent
+    /// entry.
     fn read_bytes_remainder(&mut self) -> Result<Vec<u8>, Report<VfbError>> {
         let mut buf = vec![];
-        let mut chunk = self.reader().take(0xFFFF);
-        let _ = chunk.read_to_end(&mut buf);
+        self.reader()
+            .read_to_end(&mut buf)
+            .map_err(VfbError::ReadError)?;
         Ok(buf)
     }
 }
