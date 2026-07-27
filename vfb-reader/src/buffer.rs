@@ -339,6 +339,15 @@ impl<R: std::io::Read + std::io::Seek> VfbReader<R> {
                 self.string_encoding = 1; // WINDOWS_1252
             }
         }
+        if let Some(VfbEntry::MasterCount(count)) = &entry {
+            // Multiple Master fonts declare their master count here. The count
+            // determines how many per-master values every subsequent entry
+            // (guides, hints, ...) carries. `read_number_of_masters` sets it on
+            // the scoped entry reader, which is dropped immediately, so it must
+            // be propagated to the parent reader or MM fonts are read as if they
+            // had a single master and the stream desyncs.
+            self.number_of_masters = *count as usize;
+        }
 
         Ok((key, entry))
     }
