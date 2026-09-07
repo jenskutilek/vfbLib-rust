@@ -1,14 +1,14 @@
-[profile.release]
-codegen-units = 1
-lto = true
-overflow-checks = false
-panic = "abort"
-strip = true
-
 [workspace]
 resolver = "2"
 
 members = [
-    "vfb-macros",
-    "vfb-reader"
+  "vfb-macros",
+  "vfb-reader",
 ]
+
+[profile.release]
+strip = true
+overflow-checks = false
+lto = true
+panic = "abort"
+codegen-units = 1
