@@ -482,7 +482,7 @@ pub enum VfbEntry {
     CodePpm(u16),
 
     #[vfb(key = 1604, reader = "read_u16")]
-    #[serde(rename = "dropout_ppm")]
+    #[serde(rename = "dropoutppm")]
     DropoutPpm(u16),
 
     #[vfb(key = 2032, reader = "read_u16")]
@@ -538,7 +538,7 @@ pub enum VfbEntry {
     GlyphNote(String),
 
     #[vfb(key = 1517, reader = "read_double_list")]
-    #[serde(rename = "Default Weight vector")]
+    #[serde(rename = "weight_vector")]
     WeightVector(Vec<f64>),
 
     #[vfb(key = 1044, reader = "read_i32")]
