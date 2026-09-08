@@ -249,9 +249,21 @@ impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
 
 #[derive(VfbEntry, Serialize, Debug)]
 pub enum VfbEntry {
+    #[vfb(key = 1, reader = "read_string")]
+    #[serde(rename = "block_file_data_start")]
+    BlockFileDataStart(String),
+
+    #[vfb(key = 4, reader = "read_string")]
+    #[serde(rename = "block_font_start")]
+    BlockFontStart(String),
+
     #[vfb(key = 10, reader = "read_fl_version")]
     #[serde(rename = "FL Version")]
     FlVersion(FlVersion),
+
+    #[vfb(key = 262, reader = "read_string")]
+    #[serde(rename = "block_names_start")]
+    BlockNamesStart(String),
 
     #[vfb(key = 1501, reader = "read_encoding")]
     #[serde(rename = "Encoding Default")]
