@@ -8,19 +8,19 @@ use crate::{
 
 #[derive(Debug, serde::Serialize)]
 pub struct NameRecord {
+    pub name_id: u16,
     pub platform_id: u16,
     pub encoding_id: u16,
     pub language_id: u16,
-    pub name_id: u16,
     pub string: String,
 }
 
 impl NameRecord {
     pub fn new(
+        name_id: u16,
         platform_id: u16,
         encoding_id: u16,
         language_id: u16,
-        name_id: u16,
         codes: &[i32],
     ) -> Self {
         // Decode from Mac Roman if platform_id is 1, otherwise UTF-16BE
@@ -42,10 +42,10 @@ impl NameRecord {
             .unwrap_or_default()
         };
         Self {
+            name_id,
             platform_id,
             encoding_id,
             language_id,
-            name_id,
             string,
         }
     }
