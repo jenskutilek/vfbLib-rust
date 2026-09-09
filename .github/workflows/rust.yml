@@ -155,6 +155,8 @@ jobs:
   publish-crate:
     needs: deploy-binaries
     runs-on: ubuntu-latest
+    environment:
+      name: crates
     if: contains(github.ref, 'refs/tags/v')
 
     steps:
