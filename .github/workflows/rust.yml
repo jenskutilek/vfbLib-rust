@@ -28,22 +28,3 @@ jobs:
 
       - name: Run tests in "${{ matrix.BUILD_TARGET }}" mode
         run: cargo test --profile ${{ matrix.BUILD_TARGET }}
-
-  release:
-    runs-on: ubuntu-latest
-    environment:
-      name: crates
-    steps:
-      - name: Build binaries in "release" mode
-        run: cargo build -r
-
-      - name: "Package for crates.io"
-        run: cargo package
-
-      - name: Login into crates.io
-        if: contains(github.ref, 'refs/tags/v')
-        run: cargo login ${{ secrets.CRATES_IO }}
-
-      - name: "Publish to crates.io"
-        if: contains(github.ref, 'refs/tags/v')
-        run: cargo publish

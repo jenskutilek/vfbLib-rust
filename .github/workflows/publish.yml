@@ -1,0 +1,32 @@
+name: Rust
+
+on:
+  push:
+    tags:
+      # Publish on any tag starting with a `v`, e.g., v0.1.0
+      - v*
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment:
+      name: crates
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build binaries in "release" mode
+        run: cargo build -r
+
+      - name: "Package for crates.io"
+        run: cargo package
+
+      - name: Login into crates.io
+        if: contains(github.ref, 'refs/tags/v')
+        run: cargo login ${{ secrets.CRATES_IO }}
+
+      - name: "Publish to crates.io"
+        if: contains(github.ref, 'refs/tags/v')
+        run: cargo publish
