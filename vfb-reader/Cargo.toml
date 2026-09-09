@@ -1,13 +1,13 @@
 [package]
 name = "vfbreader"
-version = "0.1.0"
+version = "0.1.1"
 license = "GPL-3.0-linking-source-exception"
 authors = ["Jens Kutilek <webmail@kutilek.de>"]
 repository = "https://github.com/jenskutilek/vfbLib-rust"
 description = "Library for handling FontLab Studio 5 VFB files"
 edition = "2021"
 categories = ["parsing"]
-readme = "README.md"
+readme = "../README.md"
 
 [dependencies]
 bitflags = { version = "2.10.0", features = ["serde"] }
