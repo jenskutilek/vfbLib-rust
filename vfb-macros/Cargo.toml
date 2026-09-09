@@ -11,7 +11,7 @@ description = "Procedural macros for VFB format handling"
 proc-macro = true
 
 [dependencies]
-error-stack = "0.4.1"
+error-stack = "0.8.0"
 proc-macro2 = "1.0"
 quote = "1.0"
 syn = { version = "3.0", features = ["full"] }
