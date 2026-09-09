@@ -13,7 +13,7 @@ readme = "../README.md"
 bitflags = { version = "2.10.0", features = ["serde"] }
 encoding_rs = "0.8.35"
 error-stack = "0.4.1"
-font-types = { version = "0.10.1", features = ["serde"] }
+font-types = { version = "0.12.4", features = ["serde"] }
 hex = "0.4.3"
 log = "0.4.29"
 phf = { version = "0.12.1", features = ["macros"] }
