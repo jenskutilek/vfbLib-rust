@@ -1,6 +1,6 @@
 [package]
 name = "vfbreader"
-version = "0.1.1"
+version = "0.1.2"
 license = "GPL-3.0-linking-source-exception"
 authors = ["Jens Kutilek <webmail@kutilek.de>"]
 repository = "https://github.com/jenskutilek/vfbLib-rust"
@@ -20,6 +20,6 @@ phf = { version = "0.12.1", features = ["macros"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 thiserror = "2.0.12"
-vfb-macros = { path = "../vfb-macros", version = "0.1.1" }
+vfb-macros = { path = "../vfb-macros", version = "0.1.2" }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
