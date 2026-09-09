@@ -319,8 +319,6 @@ impl<R: std::io::Read + std::io::Seek> VfbReader<R> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use crate::buffer::{ReadExt, VfbReader};
     use std::io::Cursor;
 
