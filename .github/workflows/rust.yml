@@ -18,7 +18,7 @@ jobs:
     outputs:
       release_built: ${{ steps.set-output.outputs.release_built }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         name: Set up Rust for caching
@@ -30,17 +30,20 @@ jobs:
         run: cargo test --profile ${{ matrix.BUILD_TARGET }}
 
   release:
-    if: contains(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    environment:
+      name: crates
     steps:
-      - name: Login into crates.io
-        run: cargo login ${{ secrets.CRATES_IO }}
-
       - name: Build binaries in "release" mode
         run: cargo build -r
 
       - name: "Package for crates.io"
-        run: cargo package # publishes a package as a tarball
+        run: cargo package
+
+      - name: Login into crates.io
+        if: contains(github.ref, 'refs/tags/v')
+        run: cargo login ${{ secrets.CRATES_IO }}
 
       - name: "Publish to crates.io"
-        run: cargo publish # publishes your crate as a library that can be added as a dependency
+        if: contains(github.ref, 'refs/tags/v')
+        run: cargo publish
