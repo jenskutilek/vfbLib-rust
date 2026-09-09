@@ -1,9 +1,6 @@
 use encoding_rs::WINDOWS_1252;
 use error_stack::Report;
-use std::{
-    collections::HashMap,
-    io::{prelude::*, BufReader},
-};
+use std::io::{prelude::*, BufReader};
 
 use crate::{
     error::{AtByteIndex, VfbError},
@@ -242,27 +239,6 @@ pub(crate) trait ReadExt {
         let _ = chunk.read_to_end(&mut buf);
         Ok(buf)
     }
-
-    // /// Read a key-value map from a buffer. The keys are u8, the values are
-    // /// "encoded values". A key of 0 means the end of the map is reached.
-    // ///
-    // /// Example:
-    // ///
-    // /// 01 | 8c
-    // /// 02 | ff 05 00 04 80
-    // /// 03 | ff 00 00 12 08
-    // /// 00
-    // /// The final 0 key is not included in the returned HashMap.
-    // fn read_key_value_map(&mut self) -> Result<HashMap<u8, i32>, Report<VfbError>> {
-    //     let mut map = HashMap::new();
-    //     let mut k = self.read_u8()?;
-    //     while k != 0 {
-    //         let v = self.read_value()?;
-    //         map.insert(k, v);
-    //         k = self.read_u8()?;
-    //     }
-    //     Ok(map)
-    // }
 }
 
 impl<R: std::io::Read + std::io::Seek> ReadExt for EntryReader<'_, R> {
@@ -489,19 +465,6 @@ mod tests {
                 .read_value()
                 .unwrap(),
             -4097i32
-        );
-    }
-
-    #[test]
-    fn test_key_value_map() {
-        assert_eq!(
-            get_reader(&[
-                0x01, 0x8c, 0x02, 0xff, 0x05, 0x00, 0x04, 0x80, 0x03, 0xff, 0x00, 0x00, 0x12, 0x08,
-                0x00
-            ])
-            .read_key_value_map()
-            .unwrap(),
-            HashMap::from([(1, 1), (2, 0x05000480), (3, 4616)])
         );
     }
 }
