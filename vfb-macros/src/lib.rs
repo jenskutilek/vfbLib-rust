@@ -151,7 +151,7 @@ pub fn derive_vfb_entry(input: TokenStream) -> TokenStream {
                     #(#new_from_reader_matches),*,
                     _ => Ok(None),
                 }.map_err(|e|
-                    e.attach_printable(
+                    e.attach(
                         format!(
                         "while reading {}",
                         Self::key_to_variant(key.into()).unwrap_or("an unknown key")

@@ -44,7 +44,7 @@ impl<T> AtByteIndex for Result<T, Report<VfbError>> {
     fn at_index(self, reader: &mut (impl ReadExt + ?Sized)) -> Self {
         self.map_err(|e| {
             let pos = reader.stream_position().unwrap_or(0);
-            e.attach_printable(format!("at byte index {:04x}", pos))
+            e.attach(format!("at byte index {:04x}", pos))
         })
     }
 }

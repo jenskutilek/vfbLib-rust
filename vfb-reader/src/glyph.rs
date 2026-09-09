@@ -259,11 +259,10 @@ impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
         let mut hint_masks = Vec::with_capacity(num_hint_masks);
         for _ in 0..num_hint_masks {
             let raw_key = self.read_u8()?;
-            let hint_mask =
-                HintMask::new_from_reader(u16::from(raw_key), self).attach_printable(format!(
-                    "while reading {}",
-                    HintMask::key_to_variant(raw_key.into()).unwrap_or("an unknown key")
-                ))?;
+            let hint_mask = HintMask::new_from_reader(u16::from(raw_key), self).attach(format!(
+                "while reading {}",
+                HintMask::key_to_variant(raw_key.into()).unwrap_or("an unknown key")
+            ))?;
             if let Some(mask) = hint_mask {
                 hint_masks.push(mask);
             }
