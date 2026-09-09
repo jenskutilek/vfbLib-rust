@@ -110,18 +110,18 @@ pub(crate) trait ReadExt {
     //     Ok(u64::from_le_bytes(buf))
     // }
 
-    /// Read the specified number of bytes from a buffer and return them as a string
-    fn read_str(&mut self, bytes_to_read: u64) -> Result<String, Report<VfbError>> {
-        let buf = self.read_bytes(bytes_to_read)?;
+    // /// Read the specified number of bytes from a buffer and return them as a string
+    // fn read_str(&mut self, bytes_to_read: u64) -> Result<String, Report<VfbError>> {
+    //     let buf = self.read_bytes(bytes_to_read)?;
 
-        if self.decode_utf8() {
-            let s = std::str::from_utf8(&buf).map_err(VfbError::InvalidUtf8)?;
-            Ok(s.to_string())
-        } else {
-            let (s, _, _) = WINDOWS_1252.decode(&buf);
-            Ok(s.to_string())
-        }
-    }
+    //     if self.decode_utf8() {
+    //         let s = std::str::from_utf8(&buf).map_err(VfbError::InvalidUtf8)?;
+    //         Ok(s.to_string())
+    //     } else {
+    //         let (s, _, _) = WINDOWS_1252.decode(&buf);
+    //         Ok(s.to_string())
+    //     }
+    // }
 
     /// Read the length of a string from a buffer and then read the string
     fn read_str_with_len(&mut self) -> Result<String, Report<VfbError>> {
@@ -243,26 +243,26 @@ pub(crate) trait ReadExt {
         Ok(buf)
     }
 
-    /// Read a key-value map from a buffer. The keys are u8, the values are
-    /// "encoded values". A key of 0 means the end of the map is reached.
-    ///
-    /// Example:
-    ///
-    /// 01 | 8c
-    /// 02 | ff 05 00 04 80
-    /// 03 | ff 00 00 12 08
-    /// 00
-    /// The final 0 key is not included in the returned HashMap.
-    fn read_key_value_map(&mut self) -> Result<HashMap<u8, i32>, Report<VfbError>> {
-        let mut map = HashMap::new();
-        let mut k = self.read_u8()?;
-        while k != 0 {
-            let v = self.read_value()?;
-            map.insert(k, v);
-            k = self.read_u8()?;
-        }
-        Ok(map)
-    }
+    // /// Read a key-value map from a buffer. The keys are u8, the values are
+    // /// "encoded values". A key of 0 means the end of the map is reached.
+    // ///
+    // /// Example:
+    // ///
+    // /// 01 | 8c
+    // /// 02 | ff 05 00 04 80
+    // /// 03 | ff 00 00 12 08
+    // /// 00
+    // /// The final 0 key is not included in the returned HashMap.
+    // fn read_key_value_map(&mut self) -> Result<HashMap<u8, i32>, Report<VfbError>> {
+    //     let mut map = HashMap::new();
+    //     let mut k = self.read_u8()?;
+    //     while k != 0 {
+    //         let v = self.read_value()?;
+    //         map.insert(k, v);
+    //         k = self.read_u8()?;
+    //     }
+    //     Ok(map)
+    // }
 }
 
 impl<R: std::io::Read + std::io::Seek> ReadExt for EntryReader<'_, R> {
