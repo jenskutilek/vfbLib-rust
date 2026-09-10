@@ -1,4 +1,4 @@
-use encoding_rs::WINDOWS_1252;
+use encoding_rs::{MACINTOSH, WINDOWS_1252};
 use error_stack::Report;
 use std::io::{prelude::*, BufReader};
 
@@ -138,8 +138,14 @@ pub(crate) trait ReadExt {
     fn read_str_remainder(&mut self) -> Result<String, Report<VfbError>> {
         let buf = self.read_bytes_remainder()?;
         if self.decode_utf8() {
-            let s = std::str::from_utf8(&buf).map_err(VfbError::InvalidUtf8)?;
-            Ok(s.to_string())
+            match std::str::from_utf8(&buf).map_err(VfbError::InvalidUtf8) {
+                Ok(s) => Ok(s.to_string()),
+                Err(_err) => {
+                    // May be a MacRoman-encoded string from an older FL version
+                    let (s2, _, _) = MACINTOSH.decode(&buf);
+                    Ok(s2.to_string())
+                }
+            }
         } else {
             let (s, _, _) = WINDOWS_1252.decode(&buf);
             Ok(s.to_string())
