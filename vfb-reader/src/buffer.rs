@@ -1,4 +1,4 @@
-use encoding_rs::WINDOWS_1252;
+use encoding_rs::{MACINTOSH, WINDOWS_1252};
 use error_stack::Report;
 use std::io::{prelude::*, BufReader};
 
@@ -10,25 +10,25 @@ use crate::{
 pub struct VfbReader<R: std::io::Read + std::io::Seek> {
     reader: BufReader<R>,
     pub(crate) number_of_masters: usize,
-    pub(crate) decode_utf8: bool,
+    pub(crate) string_encoding: u8,
 }
 
 pub struct EntryReader<'a, R: std::io::Read + std::io::Seek> {
     pub(crate) inner: std::io::Take<&'a mut BufReader<R>>,
     pub(crate) number_of_masters: usize,
-    pub(crate) decode_utf8: bool,
+    pub(crate) string_encoding: u8,
     base_position: u64,
 }
 
 impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
     pub fn new(reader: &'_ mut VfbReader<R>, size: u64) -> EntryReader<'_, R> {
         let number_of_masters = reader.number_of_masters;
-        let decode_utf8 = reader.decode_utf8;
+        let string_encoding = reader.string_encoding;
         let base_position = reader.stream_position().unwrap_or(0);
         EntryReader {
             inner: reader.reader().take(size),
             number_of_masters,
-            decode_utf8,
+            string_encoding,
             base_position,
         }
     }
@@ -36,7 +36,7 @@ impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
 
 pub(crate) trait ReadExt {
     fn reader(&mut self) -> &mut dyn Read;
-    fn decode_utf8(&self) -> bool;
+    fn string_encoding(&self) -> u8;
     fn stream_position(&mut self) -> Result<u64, std::io::Error>;
     fn read_i32(&mut self) -> Result<i32, Report<VfbError>> {
         let mut buf = [0u8; 4];
@@ -124,25 +124,40 @@ pub(crate) trait ReadExt {
     fn read_str_with_len(&mut self) -> Result<String, Report<VfbError>> {
         let len = self.read_value()?;
         let buf = self.read_bytes(len as u64)?;
-        if self.decode_utf8() {
-            let s = std::str::from_utf8(&buf).map_err(VfbError::InvalidUtf8)?;
-            Ok(s.to_string())
-        } else {
-            let (s, _, _) = WINDOWS_1252.decode(&buf);
-            log::trace!("Read a string of length {}: {}", len, s);
-            Ok(s.to_string())
+        match self.string_encoding() {
+            2 => {
+                let (s, _, _) = MACINTOSH.decode(&buf);
+                log::trace!("Read a MacRoman string of length {}: {}", len, s);
+                Ok(s.to_string())
+            }
+            1 => {
+                let (s, _, _) = WINDOWS_1252.decode(&buf);
+                log::trace!("Read a Windows-1252 string of length {}: {}", len, s);
+                Ok(s.to_string())
+            }
+            _ => {
+                let s = std::str::from_utf8(&buf).map_err(VfbError::InvalidUtf8)?;
+                Ok(s.to_string())
+            }
         }
     }
 
     /// Read the remaining bytes from a buffer and return them as a string
     fn read_str_remainder(&mut self) -> Result<String, Report<VfbError>> {
         let buf = self.read_bytes_remainder()?;
-        if self.decode_utf8() {
-            let s = std::str::from_utf8(&buf).map_err(VfbError::InvalidUtf8)?;
-            Ok(s.to_string())
-        } else {
-            let (s, _, _) = WINDOWS_1252.decode(&buf);
-            Ok(s.to_string())
+        match self.string_encoding() {
+            2 => {
+                let (s, _, _) = MACINTOSH.decode(&buf);
+                Ok(s.to_string())
+            }
+            1 => {
+                let (s, _, _) = WINDOWS_1252.decode(&buf);
+                Ok(s.to_string())
+            }
+            _ => {
+                let s = std::str::from_utf8(&buf).map_err(VfbError::InvalidUtf8)?;
+                Ok(s.to_string())
+            }
         }
     }
 
@@ -246,8 +261,8 @@ impl<R: std::io::Read + std::io::Seek> ReadExt for EntryReader<'_, R> {
         &mut self.inner
     }
 
-    fn decode_utf8(&self) -> bool {
-        self.decode_utf8
+    fn string_encoding(&self) -> u8 {
+        self.string_encoding
     }
 
     fn stream_position(&mut self) -> Result<u64, std::io::Error> {
@@ -262,8 +277,8 @@ impl<R: std::io::Read + std::io::Seek> ReadExt for VfbReader<R> {
         &mut self.reader
     }
 
-    fn decode_utf8(&self) -> bool {
-        self.decode_utf8
+    fn string_encoding(&self) -> u8 {
+        self.string_encoding
     }
 
     fn stream_position(&mut self) -> Result<u64, std::io::Error> {
@@ -276,7 +291,7 @@ impl<R: std::io::Read + std::io::Seek> VfbReader<R> {
         VfbReader {
             reader: BufReader::new(reader),
             number_of_masters: 1,
-            decode_utf8: true,
+            string_encoding: 0,
         }
     }
 
@@ -309,8 +324,14 @@ impl<R: std::io::Read + std::io::Seek> VfbReader<R> {
         // Parse the entry
         let entry = VfbEntry::new_from_reader(key, &mut entry_reader)?;
         if let Some(VfbEntry::FlVersion(fl_version)) = &entry {
-            // Match Python behavior: macOS writer uses UTF-8, Windows uses CP1252.
-            self.decode_utf8 = fl_version.platform == "macos";
+            // UTF_8 is default, overwrite for other platforms/versions
+            if fl_version.platform == "macos" {
+                if fl_version.version <= (5, 0, 4, 128) {
+                    self.string_encoding = 2; // MACINTOSH
+                }
+            } else {
+                self.string_encoding = 1; // WINDOWS_1252
+            }
         }
 
         Ok((key, entry))
