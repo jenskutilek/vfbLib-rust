@@ -111,12 +111,21 @@ pub(crate) trait ReadExt {
     // fn read_str(&mut self, bytes_to_read: u64) -> Result<String, Report<VfbError>> {
     //     let buf = self.read_bytes(bytes_to_read)?;
 
-    //     if self.decode_utf8() {
-    //         let s = std::str::from_utf8(&buf).map_err(VfbError::InvalidUtf8)?;
-    //         Ok(s.to_string())
-    //     } else {
-    //         let (s, _, _) = WINDOWS_1252.decode(&buf);
-    //         Ok(s.to_string())
+    //     match self.string_encoding() {
+    //         2 => {
+    //             let (s, _, _) = MACINTOSH.decode(&buf);
+    //             log::trace!("Read a MacRoman string of length {}: {}", len, s);
+    //             Ok(s.to_string())
+    //         }
+    //         1 => {
+    //             let (s, _, _) = WINDOWS_1252.decode(&buf);
+    //             log::trace!("Read a Windows-1252 string of length {}: {}", len, s);
+    //             Ok(s.to_string())
+    //         }
+    //         _ => {
+    //             let s = std::str::from_utf8(&buf).map_err(VfbError::InvalidUtf8)?;
+    //             Ok(s.to_string())
+    //         }
     //     }
     // }
 
