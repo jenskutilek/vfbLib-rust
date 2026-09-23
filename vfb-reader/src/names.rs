@@ -1,8 +1,11 @@
-use encoding_rs::*;
 use error_stack::Report;
 
 use crate::{
     buffer::{EntryReader, ReadExt},
+    encodings::{
+        decode_big5, decode_gbk, decode_macintosh, decode_macintosh_cyrillic, decode_utf16,
+        decode_windows1255,
+    },
     VfbError,
 };
 
@@ -23,23 +26,37 @@ impl NameRecord {
         language_id: u16,
         codes: &[i32],
     ) -> Self {
-        // Decode from Mac Roman if platform_id is 1, otherwise UTF-16BE
-        let string = if platform_id == 1 {
-            MACINTOSH
-                .decode_without_bom_handling_and_without_replacement(
-                    &codes.iter().map(|&c| c as u8).collect::<Vec<u8>>(),
-                )
-                .map(|s| s.to_string())
-                .unwrap_or_default()
-        } else {
-            String::from_utf16(
-                codes
-                    .iter()
-                    .map(|&c| c as u16)
-                    .collect::<Vec<u16>>()
-                    .as_slice(),
-            )
-            .unwrap_or_default()
+        let string = match platform_id {
+            0 => {
+                // Unicode
+                match encoding_id {
+                    3 => decode_utf16(codes),
+                    4 => decode_utf16(codes),
+                    _ => decode_utf16(codes), // Try with UTF-16 anyway
+                }
+            }
+            1 => {
+                // Macintosh
+                match encoding_id {
+                    0 => decode_macintosh(codes),
+                    // TODO: Support Mac Greek; now we decode with Mac Roman and accept
+                    // garbled output.
+                    // 6 => decode_macintosh_greek(codes), // Mac Greek, not in encoding_rs
+                    6 => decode_macintosh(codes), // Mac Greek, not in encoding_rs
+                    7 => decode_macintosh_cyrillic(codes), // Mac Russian (i.e. Cyrillic)
+                    _ => decode_utf16(codes),     // Try with UTF-16 anyway
+                }
+            }
+            2 => {
+                // Windows
+                match encoding_id {
+                    3 => decode_gbk(codes),         // PRC, CP 936
+                    4 => decode_big5(codes),        // Big5, CP 950
+                    5 => decode_windows1255(codes), // Wansung, CP 949
+                    _ => decode_utf16(codes),       // IDs > 10 are undefined, but we don't care
+                }
+            }
+            _ => decode_utf16(codes), // Unknown
         };
         Self {
             name_id,

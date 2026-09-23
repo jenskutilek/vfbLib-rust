@@ -1,4 +1,5 @@
 mod buffer;
+mod encodings;
 pub mod entries;
 mod error;
 mod glyph;
