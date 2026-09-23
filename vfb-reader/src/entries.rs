@@ -14,9 +14,11 @@ use std::io::Read;
 use vfb_macros::VfbEntry;
 
 #[derive(Debug)]
+/// Entries for which no specialized parser is available are kept as raw byte data.
 pub struct RawData(pub Vec<u8>);
 
 #[derive(Serialize, Debug)]
+/// A binary SFNT table, probably produced by importing a binary font into FontLab Studio.
 pub struct BinaryTable((Tag, RawData));
 
 // Placeholder type aliases for parser-derived types. These will be refined later.
@@ -63,12 +65,14 @@ impl Serialize for RawData {
 }
 
 #[derive(Serialize, Debug)]
+/// Two vectors of links defining horizontal and vertical stems for PostScript hinting.
 pub struct Links {
     pub y_links: Vec<(i32, i32)>,
     pub x_links: Vec<(i32, i32)>,
 }
 
 #[derive(Serialize, Debug)]
+/// Maps an index to a glyph name.
 pub struct Encoding(pub (u16, String));
 
 /// Information about the FontLab Studio application that produced the VFB file.
@@ -97,6 +101,7 @@ pub struct FlVersion {
 use bitflags::bitflags;
 bitflags! {
     #[derive(Serialize, Debug)]
+    /// Options used when a font is exported from FontLab Studio.
     pub struct ExportOptions: u16 {
         const USE_CUSTOM_OPENTYPE_EXPORT_OPTIONS = 1 << 0;
         const USE_DEFAULT_OPENTYPE_EXPORT_OPTIONS = 1 << 1;
@@ -267,26 +272,34 @@ impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
 pub enum VfbEntry {
     #[vfb(key = 1)]
     #[serde(rename = "block_file_data_start")]
+    /// An empty entry marking the start of file data.
     BlockFileDataStart(RawData),
 
     #[vfb(key = 4)]
     #[serde(rename = "block_font_start")]
+    /// An empty entry marking the start of a font.
     BlockFontStart(RawData),
 
     #[vfb(key = 10, reader = "read_fl_version")]
     #[serde(rename = "FL Version")]
+    /// Information about the FontLab Studio application that produced the VFB file.
     FlVersion(FlVersion),
 
     #[vfb(key = 262)]
     #[serde(rename = "block_names_start")]
+    /// An empty entry marking the start of font names.
     BlockNamesStart(RawData),
 
     #[vfb(key = 1501, reader = "read_encoding")]
     #[serde(rename = "Encoding Default")]
+    /// All Default Encoding entries together build the platform's default encoding for
+    /// the VFB file. It maps indexes to glyph names. This entry may be omitted.
     EncodingDefault(Encoding),
 
     #[vfb(key = 1500, reader = "read_encoding")]
     #[serde(rename = "Encoding")]
+    /// All Encoding entries together build the current encoding selected in FontLab Studio
+    /// for the VFB file. It maps indexes to glyph names.
     Encoding(Encoding),
 
     #[vfb(key = 1502, reader = "read_u16")]
@@ -295,126 +308,157 @@ pub enum VfbEntry {
 
     #[vfb(key = 518)]
     #[serde(rename = "block_names_end")]
+    /// An empty entry marking the end of font names.
     BlockNamesEnd(RawData),
 
     #[vfb(key = 257)]
     #[serde(rename = "block_font_info_start")]
+    /// An empty entry marking the start of font info.
     BlockFontInfoStart(RawData),
 
     #[vfb(key = 1026, reader = "read_string")]
     #[serde(rename = "font_name")]
+    /// The PostScript name (ID 6) for the font.
     FontName(String),
 
     #[vfb(key = 1503, reader = "read_number_of_masters")] // also sets
     #[serde(rename = "Master Count")]
+    /// The number of design masters in the file.
     MasterCount(u16),
 
     #[vfb(key = 1046, reader = "read_string")]
     #[serde(rename = "version")]
+    /// head.fontRevision.
     Version(String),
 
     #[vfb(key = 1038, reader = "read_string")]
     #[serde(rename = "notice")]
+    /// The Description (ID 10).
     Notice(String),
 
     #[vfb(key = 1025, reader = "read_string")]
     #[serde(rename = "full_name")]
+    /// The full name (ID 4) of the font.
     FullName(String),
 
     #[vfb(key = 1027, reader = "read_string")]
     #[serde(rename = "family_name")]
+    /// The Font Family name (ID 1).
     FamilyName(String),
 
     #[vfb(key = 1024, reader = "read_string")]
     #[serde(rename = "pref_family_name")]
+    /// The Typographic Family name (ID 16).
     PrefFamilyName(String),
 
     #[vfb(key = 1056, reader = "read_string")]
     #[serde(rename = "menu_name")]
+    /// The menu name of the font.
     MenuName(String),
 
     #[vfb(key = 1092, reader = "read_string")]
     #[serde(rename = "apple_name")]
+    /// The Apple name of the font.
     AppleName(String),
 
     #[vfb(key = 1028, reader = "read_string")]
     #[serde(rename = "weight")]
+    /// The weight name of the font.
     Weight(String),
 
     #[vfb(key = 1065, reader = "read_string")]
     #[serde(rename = "width")]
+    /// The width name of the font.
     Width(String),
 
     #[vfb(key = 1069, reader = "read_string")]
     #[serde(rename = "License")]
+    /// The License Description (ID 13).
     License(String),
 
     #[vfb(key = 1070, reader = "read_string")]
     #[serde(rename = "License URL")]
+    /// The License Info URL (ID 14).
     LicenseUrl(String),
 
     #[vfb(key = 1037, reader = "read_string")]
     #[serde(rename = "copyright")]
+    /// The Copyright notice (ID 0).
     Copyright(String),
 
     #[vfb(key = 1061, reader = "read_string")]
     #[serde(rename = "trademark")]
+    /// The Trademark (ID 7).
     Trademark(String),
 
     #[vfb(key = 1062, reader = "read_string")]
     #[serde(rename = "designer")]
+    /// The Designer (ID 9).
     Designer(String),
 
     #[vfb(key = 1063, reader = "read_string")]
     #[serde(rename = "designer_url")]
+    /// The URL of Designer (ID 12).
     DesignerUrl(String),
 
     #[vfb(key = 1064, reader = "read_string")]
     #[serde(rename = "vendor_url")]
+    /// The URL of Vendor (ID 11).
     VendorUrl(String),
 
     #[vfb(key = 1039, reader = "read_string")]
     #[serde(rename = "source")]
+    /// The Manufacturer Name (ID 8).
     Source(String),
 
     #[vfb(key = 1034, reader = "read_u16")]
     #[serde(rename = "is_fixed_pitch")]
+    /// The post.isFixedPitch field.
     IsFixedPitch(u16),
 
     #[vfb(key = 1031, reader = "read_u16")]
     #[serde(rename = "underline_thickness")]
+    /// Suggested value for the underline thickness (`post.underlineThickness`).
     UnderlineThickness(u16),
 
     #[vfb(key = 1054, reader = "read_i16")]
     #[serde(rename = "ms_charset")]
+    /// The MS Charset.
     MsCharset(i16),
 
     #[vfb(key = 1118, reader = "read_panose")]
     #[serde(rename = "panose")]
+    /// The PANOSE classification.
     Panose([i8; 10]),
 
     #[vfb(key = 1128, reader = "read_string")]
     #[serde(rename = "tt_version")]
+    /// The Version string (ID 5).
     TtVersion(String),
 
     #[vfb(key = 1129, reader = "read_string")]
     #[serde(rename = "tt_u_id")]
+    /// The Unique font identifier (ID 3).
     TtUId(String),
 
     #[vfb(key = 1127, reader = "read_string")]
     #[serde(rename = "style_name")]
+    /// The Font Subfamily name (ID 2).
     StyleName(String),
 
     #[vfb(key = 1137, reader = "read_string")]
     #[serde(rename = "pref_style_name")]
+    /// The Typographic Subfamily name (ID 17).
     PrefStyleName(String),
 
     #[vfb(key = 1139, reader = "read_string")]
     #[serde(rename = "mac_compatible")]
+    /// The Compatible Full (Macintosh only) name (ID 18).
     MacCompatible(String),
 
     #[vfb(key = 1121, reader = "read_string")]
     #[serde(rename = "vendor")]
+    /// The 4-character vendor code, `OS/2.achVendID`.
     Vendor(String),
 
     #[vfb(key = 1132, reader = "read_u16")]
@@ -423,106 +467,133 @@ pub enum VfbEntry {
 
     #[vfb(key = 1130, reader = "read_u16")]
     #[serde(rename = "version_major")]
+    /// The major version of the font.
     VersionMajor(u16),
 
     #[vfb(key = 1131, reader = "read_u16")]
     #[serde(rename = "version_minor")]
+    /// The minor version of the font.
     VersionMinor(u16),
 
     #[vfb(key = 1135, reader = "read_u16")]
     #[serde(rename = "upm")]
+    /// The units per em (`head.unitsPerEm`).
     Upm(u16),
 
     #[vfb(key = 1090, reader = "read_u16")]
     #[serde(rename = "fond_id")]
+    /// The FOND ID.
     FondId(u16),
 
     #[vfb(key = 1530, reader = "read_u16")]
     #[serde(rename = "blue_values_num")]
+    /// The number of significant values in the `BlueValues` array.
     BlueValuesNum(u16),
 
     #[vfb(key = 1531, reader = "read_u16")]
     #[serde(rename = "other_blues_num")]
+    /// The number of significant values in the `OtherBlues` array.
     OtherBluesNum(u16),
 
     #[vfb(key = 1532, reader = "read_u16")]
     #[serde(rename = "family_blues_num")]
+    /// The number of significant values in the `FamilyBlues` array.
     FamilyBluesNum(u16),
 
     #[vfb(key = 1533, reader = "read_u16")]
     #[serde(rename = "family_other_blues_num")]
+    /// The number of significant values in the `FamilyOtherBlues` array.
     FamilyOtherBluesNum(u16),
 
     #[vfb(key = 1534, reader = "read_u16")]
     #[serde(rename = "stem_snap_h_num")]
+    /// The number of significant values in the `StemSnapH` array.
     StemSnapHNum(u16),
 
     #[vfb(key = 1535, reader = "read_u16")]
     #[serde(rename = "stem_snap_v_num")]
+    /// The number of significant values in the `StemSnapV` array.
     StemSnapVNum(u16),
 
     #[vfb(key = 1267, reader = "read_u16")]
     #[serde(rename = "font_style")]
+    /// The font style flags (`head.macStyle`)
     FontStyle(u16),
 
     #[vfb(key = 1057, reader = "read_u16")]
     #[serde(rename = "pcl_id")]
+    /// The PCL ID.
     PclId(u16),
 
     #[vfb(key = 1058, reader = "read_u16")]
     #[serde(rename = "vp_id")]
+    /// The VP ID.
     VpId(u16),
 
     #[vfb(key = 1060, reader = "read_u16")]
     #[serde(rename = "ms_id")]
+    /// The MS ID.
     MsId(u16),
 
     #[vfb(key = 1059, reader = "read_string")]
     #[serde(rename = "pcl_chars_set")]
+    /// The PCL character set.
     PclCharsSet(String),
 
     #[vfb(key = 1270, reader = "read_u16")]
     #[serde(rename = "hhea_line_gap")]
+    /// The line gap (`hhea.lineGap`)
     HheaLineGap(u16),
 
     #[vfb(key = 1272, reader = "read_u16")]
     #[serde(rename = "stemsnaplimit")]
+    /// TrueType: The CVT cut-in value in 64ths of a pixel. FontLab Studio only allows
+    /// entering values in 16ths of a pixel, which are then converted and stored as 64ths.
     StemSnapLimit(u16),
 
     #[vfb(key = 1274, reader = "read_u16")]
     #[serde(rename = "zoneppm")]
+    /// TrueType: Alignment zones are active up to this ppm.
     ZonePpm(u16),
 
     #[vfb(key = 1275, reader = "read_u16")]
     #[serde(rename = "codeppm")]
+    /// TrueType: Grid-fitting is active up to this ppm.
     CodePpm(u16),
 
     #[vfb(key = 1604, reader = "read_u16")]
     #[serde(rename = "dropoutppm")]
+    /// TrueType: Activate dropout control up to this ppm.
     DropoutPpm(u16),
 
     #[vfb(key = 2032, reader = "read_u16")]
     #[serde(rename = "Measurement Line")]
+    /// The vertical position of the measurement line.
     MeasurementLine(u16),
 
     #[vfb(key = 2022, reader = "read_u16")]
     #[serde(rename = "Export PCLT Table")]
+    /// Controls the export of the PCLT table.
     ExportPcltTable(u16),
 
     #[vfb(key = 2025, reader = "read_string")]
     #[serde(rename = "note")]
+    /// A note for the font.
     Note(String),
 
     #[vfb(key = 2016, reader = "read_string")]
     #[serde(rename = "customdata")]
+    /// Custom string data for the font.
     CustomData(String),
 
     #[vfb(key = 1277, reader = "read_string")]
     #[serde(rename = "OpenType Class")]
+    /// An OpenType glyph class.
     OpenTypeClass(String),
 
     #[vfb(key = 1513, reader = "read_u16")]
     #[serde(rename = "Axis Count")]
+    /// The number of multiple master axes in the VFB file.
     AxisCount(u16),
 
     #[vfb(key = 1514, reader = "read_string")]
@@ -539,58 +610,72 @@ pub enum VfbEntry {
 
     #[vfb(key = 2034, reader = "read_string")]
     #[serde(rename = "Custom Dict")]
+    /// A pickled Python dict.
     CustomDict(String),
 
     #[vfb(key = 2012, reader = "read_u16")]
     #[serde(rename = "mark")]
+    /// The mark color of a glyph.
     Mark(u16),
 
     #[vfb(key = 2015, reader = "read_string")]
     #[serde(rename = "glyph.customdata")]
+    // Custom string data for a glyph.
     GlyphCustomData(String),
 
     #[vfb(key = 2017, reader = "read_string")]
     #[serde(rename = "glyph.note")]
+    /// A note for a glyph.
     GlyphNote(String),
 
     #[vfb(key = 1517, reader = "read_double_list")]
     #[serde(rename = "weight_vector")]
+    /// The default weight vector of a multiple master font.
     WeightVector(Vec<f64>),
 
     #[vfb(key = 1044, reader = "read_i32")]
     #[serde(rename = "unique_id")]
+    /// The Type1 unique ID.
     UniqueId(i32),
 
     #[vfb(key = 1048, reader = "read_i16")]
     #[serde(rename = "weight_code")]
+    /// The weight class (`OS/2.usWeightClass`).
     WeightCode(i16),
 
     #[vfb(key = 1029, reader = "read_f64")]
     #[serde(rename = "italic_angle")]
+    /// The italic angle (`post.italicAngle`).
     ItalicAngle(f64),
 
     #[vfb(key = 1047, reader = "read_f64")]
     #[serde(rename = "slant_angle")]
+    /// A slant angle to be applied at export.
     SlantAngle(f64),
 
     #[vfb(key = 1030, reader = "read_i16")]
     #[serde(rename = "underline_position")]
+    /// Suggested value for the underline position (`post.underlinePosition`).
     UnderlinePosition(i16),
 
     #[vfb(key = 1140, reader = "read_string")]
     #[serde(rename = "sample_text")]
+    /// A suggested Sample text (ID 19).
     SampleText(String),
 
     #[vfb(key = 1133, reader = "read_int_list")]
     #[serde(rename = "xuid")]
+    /// The Type1 extended unique ID.
     Xuid(Vec<u16>),
 
     #[vfb(key = 1134, reader = "read_i16")]
     #[serde(rename = "xuid_num")]
+    /// The number of significant values in the Type1 extended unique ID array.
     XuidNum(i16),
 
     #[vfb(key = 1093, reader = "read_u16")]
     #[serde(rename = "PostScript Hinting Options")]
+    /// The PostScript (auto)hinting options.
     PostScriptHintingOptions(PostScriptGlobalHintingOptions),
 
     #[vfb(key = 1068, reader = "read_encoded_value_list")]
@@ -599,50 +684,62 @@ pub enum VfbEntry {
 
     #[vfb(key = 1264, reader = "read_truetype_values")]
     #[serde(rename = "ttinfo")]
+    /// The TrueType info.
     TtInfo(Vec<TrueTypeValue>),
 
     #[vfb(key = 2021, reader = "read_unicode_ranges")]
     #[serde(rename = "unicoderanges")]
+    /// The Unicode ranges fields (`OS/2.ulUnicodeRange{1-4}`).
     UnicodeRanges(Vec<u32>), // Maybe use a bitflags array?
 
     #[vfb(key = 1138, reader = "read_namerecords")]
     #[serde(rename = "fontnames")]
+    /// Custom name table entries.
     FontNames(Vec<NameRecord>),
 
     #[vfb(key = 1141)]
     #[serde(rename = "Custom CMAPs")]
+    /// Custom cmap tables to export.
     CustomCmaps(CustomCmap),
 
     #[vfb(key = 1136)]
     #[serde(rename = "PCLT Table")]
+    /// The PCLT table.
     PcltTable(Pclt),
 
     #[vfb(key = 2030)]
     #[serde(rename = "Font Flags")]
+    /// Font flags (`head.flags`).
     FontFlags(RawData),
 
     #[vfb(key = 2024)]
     #[serde(rename = "OpenType Metrics Class Flags")]
+    /// Internal flags for metrics classes.
     MetricsClassFlags(OpenTypeMetricsClassFlags),
 
     #[vfb(key = 2026)]
     #[serde(rename = "OpenType Kerning Class Flags")]
+    /// Internal flags for OpenType kerning classes.
     KerningClassFlags(OpenTypeKerningClassFlags),
 
     #[vfb(key = 2014, reader = "read_binary_table")]
     #[serde(rename = "TrueTypeTable")]
+    /// A binary SFNT table, consisting of a table tag and binary data.
     TrueTypeTable(BinaryTable),
 
     #[vfb(key = 1276, reader = "read_string")]
     #[serde(rename = "features")]
+    /// OpenType feature code.
     Features(String),
 
     #[vfb(key = 513)]
     #[serde(rename = "block_font_info_end")]
+    /// An empty entry marking the end of font info data.
     BlockFontInfoEnd(RawData),
 
     #[vfb(key = 271)]
     #[serde(rename = "block_mm_font_info_start")]
+    /// An empty entry marking the start of multiple master font info data.
     BlockMMFontInfoStart(RawData),
 
     #[vfb(key = 1523)]
@@ -651,42 +748,53 @@ pub enum VfbEntry {
 
     #[vfb(key = 1515, reader = "read_axis_mappings_count")]
     #[serde(rename = "Axis Mappings Count")]
+    /// The number of significant axis mappings in the Axis Mappings array.
     AxisMappingsCount([u32; 4]),
 
     #[vfb(key = 1516)]
     #[serde(rename = "Axis Mappings")]
+    /// Axis Mappings
     AxisMappings(AxisMappings),
 
     #[vfb(key = 1247, reader = "read_double_list")]
     #[serde(rename = "Primary Instance Locations")]
+    /// Primary instance locations on all axes.
     PrimaryInstanceLocations(Vec<f64>),
 
     #[vfb(key = 1254)]
     #[serde(rename = "Primary Instances")]
+    /// Named primary instances.
     PrimaryInstances(PrimaryInstances),
 
     #[vfb(key = 527)]
     #[serde(rename = "block_mm_font_info_end")]
+    /// An empty entry marking the end of multiple master font info data.
     BlockMMFontInfoEnd(RawData),
 
     #[vfb(key = 1294, reader = "read_guides")]
     #[serde(rename = "Global Guides")]
+    /// Global guide positions and angles.
     GlobalGuides(Guides),
 
     #[vfb(key = 1296)]
     #[serde(rename = "Global Guide Properties")]
+    /// Properties of global guides.
     GlobalGuideProperties(GuideProperties),
 
     #[vfb(key = 1295)]
     #[serde(rename = "Global Mask")]
+    /// The global mask (background) layer.
     GlobalMask(GlobalMask),
 
     #[vfb(key = 1743)]
     #[serde(rename = "Font Options")]
+    /// Options used for internal operations, and for when a font is exported from
+    /// FontLab Studio.
     FontOptions(RawData),
 
     #[vfb(key = 1744, reader = "read_u16")]
     #[serde(rename = "Export Options")]
+    /// Options used when a font is exported from FontLab Studio.
     ExportOptions(ExportOptions),
 
     #[vfb(key = 1742)]
@@ -695,6 +803,7 @@ pub enum VfbEntry {
 
     #[vfb(key = 272)]
     #[serde(rename = "block_mm_kerning_start")]
+    /// An empty entry marking the start of multiple master kerning data.
     BlockMMKerningStart(RawData),
 
     #[vfb(key = 1410, reader = "read_mm_kern_pair")]
@@ -703,6 +812,7 @@ pub enum VfbEntry {
 
     #[vfb(key = 528)]
     #[serde(rename = "block_mm_kerning_end")]
+    /// An empty entry marking the end of multiple master kerning data.
     BlockMMKerningEnd(RawData),
 
     #[vfb(key = 1505)]
@@ -711,133 +821,166 @@ pub enum VfbEntry {
 
     #[vfb(key = 1536)]
     #[serde(rename = "PostScript Info")]
+    /// The PostScript font info, one per master.
     PostScriptInfo(PostScriptInfo),
 
     #[vfb(key = 1261)]
     #[serde(rename = "cvt")]
+    /// The binary `cvt` table containing TrueType control values.
     Cvt(RawData),
 
     #[vfb(key = 1262)]
     #[serde(rename = "prep")]
+    /// The binary `prep` table containing the TrueType control value program.
     Prep(RawData),
 
     #[vfb(key = 1263)]
     #[serde(rename = "fpgm")]
+    /// The binary `fpgm` table containing the TrueType font program.
     Fpgm(RawData),
 
     #[vfb(key = 1265)]
     #[serde(rename = "gasp")]
+    /// `gasp` table data.
     Gasp(RawData),
 
     #[vfb(key = 1271)]
     #[serde(rename = "vdmx")]
+    /// `vdmx` table data.
     Vdmx(Vdmx),
 
     #[vfb(key = 1278, reader = "read_i16")]
     #[serde(rename = "hhea_ascender")]
+    /// The ascender (`hhea.ascender`)
     HheaAscender(i16),
 
     #[vfb(key = 1279, reader = "read_i16")]
     #[serde(rename = "hhea_descender")]
+    /// The descender (`hhea.descender`)
     HheaDescender(i16),
 
     #[vfb(key = 1266)]
     #[serde(rename = "TrueType Stem PPEMs 2 And 3")]
+    /// TrueType stem pixel widths for ppm 2 and 3.
     TrueTypeStemPpems2And3(TrueTypeStemPpems23),
 
     #[vfb(key = 1268)]
     #[serde(rename = "TrueType Stem PPEMs")]
+    /// TrueType stem pixel widths for ppm 2 to 6.
     TrueTypeStemPpems(TrueTypeStemPpems),
 
     #[vfb(key = 1269)]
     #[serde(rename = "TrueType Stems")]
+    /// TrueType stem definitions.
     TrueTypeStems(TrueTypeStems),
 
     #[vfb(key = 1524)]
     #[serde(rename = "TrueType Stem PPEMs 1")]
+    /// TrueType stem pixel widths for ppm 1.
     TrueTypeStemPpems1(TrueTypeStemPpems1),
 
     #[vfb(key = 1255)]
     #[serde(rename = "TrueType Zones")]
+    /// TrueType zone definitions.
     TrueTypeZones(TrueTypeZones),
 
     #[vfb(key = 1273)]
     #[serde(rename = "TrueType Zone Deltas")]
+    /// TrueType zone deltas.
     TrueTypeZoneDeltas(TrueTypeZoneDeltas),
 
     #[vfb(key = 2001, reader = "read_glyph")]
     #[serde(rename = "Glyph")]
+    /// A glyph.
     Glyph(Vec<GlyphEntry>),
 
     #[vfb(key = 2008, reader = "read_links")]
     #[serde(rename = "Links")]
+    /// Two vectors of links defining horizontal and vertical stems for PostScript hinting.
     Links(Links),
 
     #[vfb(key = 2007)]
     #[serde(rename = "image")]
+    /// The 1-bit background image of a glyph.
     Image(BackgroundBitmap),
 
     #[vfb(key = 2013)]
     #[serde(rename = "Glyph Bitmaps")]
+    /// Glyph bitmaps.
     Bitmaps(GlyphBitmaps),
 
     #[vfb(key = 2023)]
     #[serde(rename = "VSB")]
+    /// The vertical sidebearing of a glyph.
     VSB(EncodedValueList),
 
     #[vfb(key = 2019)]
     #[serde(rename = "Glyph Sketch")]
+    /// The sketch data of a glyph.
     Sketch(GlyphSketch),
 
     #[vfb(key = 2010, reader = "read_u32")]
     #[serde(rename = "Glyph Hinting Options")]
+    /// The PostScript hinting options for a glyph.
     HintingOptions(PostScriptGlyphHintingOptions),
 
     #[vfb(key = 2009)]
     #[serde(rename = "mask")]
+    /// The mask (background) layer of a glyph.
     Mask(Mask),
 
     #[vfb(key = 2011)]
     #[serde(rename = "mask.metrics")]
+    /// The metrics of the mask layer of a glyph.
     MaskMetrics(MaskMetrics),
 
     #[vfb(key = 2028)]
     #[serde(rename = "mask.metrics_mm")]
+    /// The multiple master metrics of the mask layer of a glyph.
     MaskMetricsMm(MaskMetricsMM),
 
     #[vfb(key = 2027, reader = "read_i16_tuple")]
     #[serde(rename = "Glyph Origin")]
+    /// The origin point of a glyph.
     Origin((i16, i16)),
 
     #[vfb(key = 1250, reader = "read_int_list")]
     #[serde(rename = "unicodes")]
+    /// The Unicode codepoints <= 0xFFFF of a glyph
     Unicodes(Vec<u16>),
 
     #[vfb(key = 1253, reader = "read_u32_list")]
     #[serde(rename = "Glyph Unicode Non-BMP")]
+    /// The Unicode codepoints > 0xFFFF of a glyph
     UnicodesNonBmp(Vec<u32>),
 
     #[vfb(key = 2018)]
     #[serde(rename = "Glyph GDEF Data")]
+    /// GDEF data for a glyph.
     GdefData(GlyphGDEF),
 
     #[vfb(key = 2020, reader = "read_anchors_supplemental")]
     #[serde(rename = "Glyph Anchors Supplemental")]
+    /// Properties of the anchors of a glyph.
     AnchorsProperties(Vec<AnchorsSupplemental>),
 
     #[vfb(key = 2029, reader = "read_anchors")]
     #[serde(rename = "Glyph Anchors MM")]
+    /// Multiple master anchor data for a glyph.
     AnchorsMm(Vec<Vec<Anchor>>),
 
     #[vfb(key = 2031)]
     #[serde(rename = "Glyph Guide Properties")]
+    /// Properties of glyph-level guides
     GuideProperties(GuideProperties),
 
     #[vfb(key = 5)]
     #[serde(rename = "block_font_end")]
+    // An empty entry marking the end of a font.
     BlockFontEnd(RawData),
 
     #[vfb(key = 2)]
     #[serde(rename = "block_file_data_end")]
+    // An empty entry marking the end of file data.
     BlockFileDataEnd(RawData),
 }
