@@ -111,12 +111,24 @@ pub(crate) trait ReadExt {
     // fn read_str(&mut self, bytes_to_read: u64) -> Result<String, Report<VfbError>> {
     //     let buf = self.read_bytes(bytes_to_read)?;
 
-    //     if self.decode_utf8() {
-    //         let s = std::str::from_utf8(&buf).map_err(VfbError::InvalidUtf8)?;
-    //         Ok(s.to_string())
-    //     } else {
-    //         let (s, _, _) = WINDOWS_1252.decode(&buf);
-    //         Ok(s.to_string())
+    //     match self.string_encoding() {
+    //         2 => {
+    //             let (s, _, _) = MACINTOSH.decode(&buf);
+    //             log::trace!("Read a MacRoman string of length {}: {}", len, s);
+    //             Ok(s.to_string())
+    //         }
+    //         1 => {
+    //             let (s, _, _) = WINDOWS_1252.decode(&buf);
+    //             log::trace!("Read a Windows-1252 string of length {}: {}", len, s);
+    //             Ok(s.to_string())
+    //         }
+    //         _ => {
+    //             if let Ok(s) = std::str::from_utf8(&buf) {
+    //                 return Ok(s.to_string());
+    //             }
+    //             let (s, _, _) = WINDOWS_1252.decode(&buf);
+    //             Ok(s.to_string())
+    //         }
     //     }
     // }
 
@@ -136,7 +148,10 @@ pub(crate) trait ReadExt {
                 Ok(s.to_string())
             }
             _ => {
-                let s = std::str::from_utf8(&buf).map_err(VfbError::InvalidUtf8)?;
+                if let Ok(s) = std::str::from_utf8(&buf) {
+                    return Ok(s.to_string());
+                }
+                let (s, _, _) = WINDOWS_1252.decode(&buf);
                 Ok(s.to_string())
             }
         }
@@ -155,7 +170,10 @@ pub(crate) trait ReadExt {
                 Ok(s.to_string())
             }
             _ => {
-                let s = std::str::from_utf8(&buf).map_err(VfbError::InvalidUtf8)?;
+                if let Ok(s) = std::str::from_utf8(&buf) {
+                    return Ok(s.to_string());
+                }
+                let (s, _, _) = WINDOWS_1252.decode(&buf);
                 Ok(s.to_string())
             }
         }
@@ -329,6 +347,10 @@ impl<R: std::io::Read + std::io::Seek> VfbReader<R> {
                 if fl_version.version <= (5, 0, 4, 128) {
                     self.string_encoding = 2; // MACINTOSH
                 }
+                // For newer versions, we leave the encoding as the default UTF_8.
+                // We can't decide here whether the strings actually use UTF_8, so later
+                // when actually decodings strings, we try UTF_8, then fall back to
+                // WINDOWS_1252 on errors.
             } else {
                 self.string_encoding = 1; // WINDOWS_1252
             }
