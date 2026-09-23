@@ -976,11 +976,11 @@ pub enum VfbEntry {
 
     #[vfb(key = 5)]
     #[serde(rename = "block_font_end")]
-    // An empty entry marking the end of a font.
+    /// An empty entry marking the end of a font.
     BlockFontEnd(RawData),
 
     #[vfb(key = 2)]
     #[serde(rename = "block_file_data_end")]
-    // An empty entry marking the end of file data.
+    /// An empty entry marking the end of file data.
     BlockFileDataEnd(RawData),
 }
