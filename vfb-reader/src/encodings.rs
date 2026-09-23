@@ -1,59 +1,57 @@
 use encoding_rs::{BIG5, GBK, MACINTOSH, WINDOWS_1255, X_MAC_CYRILLIC};
 
 pub(crate) fn decode_big5(codes: &[i32]) -> String {
-    return BIG5
-        .decode_without_bom_handling_and_without_replacement(
-            &codes.iter().map(|&c| c as u8).collect::<Vec<u8>>(),
-        )
-        .map(|s| s.to_string())
-        .unwrap_or_default();
+    BIG5.decode_without_bom_handling_and_without_replacement(
+        &codes.iter().map(|&c| c as u8).collect::<Vec<u8>>(),
+    )
+    .map(|s| s.to_string())
+    .unwrap_or_default()
 }
 
 pub(crate) fn decode_gbk(codes: &[i32]) -> String {
-    return GBK
-        .decode_without_bom_handling_and_without_replacement(
-            &codes.iter().map(|&c| c as u8).collect::<Vec<u8>>(),
-        )
-        .map(|s| s.to_string())
-        .unwrap_or_default();
+    GBK.decode_without_bom_handling_and_without_replacement(
+        &codes.iter().map(|&c| c as u8).collect::<Vec<u8>>(),
+    )
+    .map(|s| s.to_string())
+    .unwrap_or_default()
 }
 
 pub(crate) fn decode_macintosh(codes: &[i32]) -> String {
-    return MACINTOSH
+    MACINTOSH
         .decode_without_bom_handling_and_without_replacement(
             &codes.iter().map(|&c| c as u8).collect::<Vec<u8>>(),
         )
         .map(|s| s.to_string())
-        .unwrap_or_default();
+        .unwrap_or_default()
 }
 
 pub(crate) fn decode_macintosh_cyrillic(codes: &[i32]) -> String {
-    return X_MAC_CYRILLIC
+    X_MAC_CYRILLIC
         .decode_without_bom_handling_and_without_replacement(
             &codes.iter().map(|&c| c as u8).collect::<Vec<u8>>(),
         )
         .map(|s| s.to_string())
-        .unwrap_or_default();
+        .unwrap_or_default()
 }
 
 pub(crate) fn decode_utf16(codes: &[i32]) -> String {
-    return String::from_utf16(
+    String::from_utf16(
         codes
             .iter()
             .map(|&c| c as u16)
             .collect::<Vec<u16>>()
             .as_slice(),
     )
-    .unwrap_or_default();
+    .unwrap_or_default()
 }
 
 pub(crate) fn decode_windows1255(codes: &[i32]) -> String {
-    return WINDOWS_1255
+    WINDOWS_1255
         .decode_without_bom_handling_and_without_replacement(
             &codes.iter().map(|&c| c as u8).collect::<Vec<u8>>(),
         )
         .map(|s| s.to_string())
-        .unwrap_or_default();
+        .unwrap_or_default()
 }
 
 // const MACGREEK: [u16; 128] = [
