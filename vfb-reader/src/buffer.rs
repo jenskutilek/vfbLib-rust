@@ -265,11 +265,17 @@ pub(crate) trait ReadExt {
         Ok(buf)
     }
 
-    /// Read the remaining bytes from a buffer
+    /// Read the remaining bytes of the current entry.
+    ///
+    /// The reader is scoped to the entry's declared size (a `Take`), so this reads to the end of
+    /// that scope. It must NOT impose its own byte cap: entries such as OpenType feature code
+    /// routinely exceed 64 KB, and a smaller cap leaves bytes unread and desyncs every subsequent
+    /// entry.
     fn read_bytes_remainder(&mut self) -> Result<Vec<u8>, Report<VfbError>> {
         let mut buf = vec![];
-        let mut chunk = self.reader().take(0xFFFF);
-        let _ = chunk.read_to_end(&mut buf);
+        self.reader()
+            .read_to_end(&mut buf)
+            .map_err(VfbError::ReadError)?;
         Ok(buf)
     }
 }
@@ -354,6 +360,15 @@ impl<R: std::io::Read + std::io::Seek> VfbReader<R> {
             } else {
                 self.string_encoding = 1; // WINDOWS_1252
             }
+        }
+        if let Some(VfbEntry::MasterCount(count)) = &entry {
+            // Multiple Master fonts declare their master count here. The count
+            // determines how many per-master values every subsequent entry
+            // (guides, hints, ...) carries. `read_number_of_masters` sets it on
+            // the scoped entry reader, which is dropped immediately, so it must
+            // be propagated to the parent reader or MM fonts are read as if they
+            // had a single master and the stream desyncs.
+            self.number_of_masters = *count as usize;
         }
 
         Ok((key, entry))
