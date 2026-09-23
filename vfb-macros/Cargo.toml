@@ -1,6 +1,6 @@
 [package]
 name = "vfb-macros"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 description = "Procedural macros for VFB format handling"
 repository = "https://github.com/jenskutilek/vfbLib-rust"
