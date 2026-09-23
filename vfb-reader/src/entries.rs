@@ -71,10 +71,26 @@ pub struct Links {
 #[derive(Serialize, Debug)]
 pub struct Encoding(pub (u16, String));
 
+/// Information about the FontLab Studio application that produced the VFB file.
+/// The platform and version influence the encoding used for strings throughout the
+/// VFB. Up until version 5.0.4, files written with the "macos" platform encoded strings
+/// as `MACINTOSH`, and files written with the "windows" platform encoded strings as
+/// `WINDOWS_1252`.
+/// For versions after 5.0.4 (and < 6.0.0), both the macOS and Windows ports of FontLab
+/// Studio write files with the "macos" platform identifier, but on macOS, files are
+/// written with `UTF_8` string encoding, while on Windows `WINDOWS_1252` is used as
+/// before.
+/// The Windows port of FontLab Studio 5 is the only one realistically in use today. It
+/// is impossible to enter characters outside of `WINDOWS_1252` in all dialogs there.
+/// When the input is committed, unencodable characters are replaced by "?".
 #[derive(Serialize, Debug)]
 pub struct FlVersion {
+    /// The platform on which the VFB was produced, "macos" or "windows".
     pub platform: String,
+    /// The version of FL Studio that produced the VFB file, e.g. for 5.2.2: (5, 2, 2, 128).
     pub version: (u8, u8, u8, u8),
+    /// This field contained the serial number of the application that produced the VFB
+    /// file up to FL Studio 5.0.4; in newer versions, it always contains 0.
     pub owner: i32,
 }
 
