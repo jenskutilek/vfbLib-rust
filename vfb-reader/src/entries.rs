@@ -642,7 +642,7 @@ pub enum VfbEntry {
     BlockFontInfoEnd(RawData),
 
     #[vfb(key = 271)]
-    #[serde(rename = "block_mm_font_info_end")]
+    #[serde(rename = "block_mm_font_info_start")]
     BlockMMFontInfoStart(RawData),
 
     #[vfb(key = 1523)]
