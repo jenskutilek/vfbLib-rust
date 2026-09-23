@@ -41,10 +41,6 @@ pub fn read_vfb(path: impl Into<PathBuf>) -> Result<Vfb, Report<VfbError>> {
     loop {
         let (key, entry_opt) = r.read_entry()?;
 
-        if key == 5 {
-            // End of file marker (key 5 = EOF), don't include
-            break;
-        }
         log::trace!(
             "Read entry with key: {:?} {:?}",
             VfbEntry::key_to_variant(key),
@@ -54,6 +50,11 @@ pub fn read_vfb(path: impl Into<PathBuf>) -> Result<Vfb, Report<VfbError>> {
 
         if let Some(entry) = entry_opt {
             vfb.entries.push(entry);
+        }
+
+        if key == 2 {
+            // End of file
+            break;
         }
     }
 

@@ -265,21 +265,21 @@ impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
 
 #[derive(VfbEntry, Serialize, Debug)]
 pub enum VfbEntry {
-    #[vfb(key = 1, reader = "read_string")]
+    #[vfb(key = 1)]
     #[serde(rename = "block_file_data_start")]
-    BlockFileDataStart(String),
+    BlockFileDataStart(RawData),
 
-    #[vfb(key = 4, reader = "read_string")]
+    #[vfb(key = 4)]
     #[serde(rename = "block_font_start")]
-    BlockFontStart(String),
+    BlockFontStart(RawData),
 
     #[vfb(key = 10, reader = "read_fl_version")]
     #[serde(rename = "FL Version")]
     FlVersion(FlVersion),
 
-    #[vfb(key = 262, reader = "read_string")]
+    #[vfb(key = 262)]
     #[serde(rename = "block_names_start")]
-    BlockNamesStart(String),
+    BlockNamesStart(RawData),
 
     #[vfb(key = 1501, reader = "read_encoding")]
     #[serde(rename = "Encoding Default")]
@@ -293,13 +293,13 @@ pub enum VfbEntry {
     #[serde(rename = "mm_encoding_type")]
     MMEncodingType(u16),
 
-    #[vfb(key = 518, reader = "read_string")]
+    #[vfb(key = 518)]
     #[serde(rename = "block_names_end")]
-    BlockNamesEnd(String),
+    BlockNamesEnd(RawData),
 
-    #[vfb(key = 257, reader = "read_string")]
+    #[vfb(key = 257)]
     #[serde(rename = "block_font_info_start")]
-    BlockFontInfoStart(String),
+    BlockFontInfoStart(RawData),
 
     #[vfb(key = 1026, reader = "read_string")]
     #[serde(rename = "font_name")]
@@ -638,11 +638,11 @@ pub enum VfbEntry {
     Features(String),
 
     #[vfb(key = 513)]
-    #[serde(rename = "Block Font Info End")]
+    #[serde(rename = "block_font_info_end")]
     BlockFontInfoEnd(RawData),
 
     #[vfb(key = 271)]
-    #[serde(rename = "Block MM Font Info Start")]
+    #[serde(rename = "block_mm_font_info_end")]
     BlockMMFontInfoStart(RawData),
 
     #[vfb(key = 1523)]
@@ -666,7 +666,7 @@ pub enum VfbEntry {
     PrimaryInstances(PrimaryInstances),
 
     #[vfb(key = 527)]
-    #[serde(rename = "Block MM Font Info End")]
+    #[serde(rename = "block_mm_font_info_end")]
     BlockMMFontInfoEnd(RawData),
 
     #[vfb(key = 1294, reader = "read_guides")]
@@ -694,7 +694,7 @@ pub enum VfbEntry {
     MappingMode(MappingMode),
 
     #[vfb(key = 272)]
-    #[serde(rename = "Block MM Kerning Start")]
+    #[serde(rename = "block_mm_kerning_start")]
     BlockMMKerningStart(RawData),
 
     #[vfb(key = 1410, reader = "read_mm_kern_pair")]
@@ -702,7 +702,7 @@ pub enum VfbEntry {
     MMKernPair([i16; 5]),
 
     #[vfb(key = 528)]
-    #[serde(rename = "Block MM Kerning End")]
+    #[serde(rename = "block_mm_kerning_end")]
     BlockMMKerningEnd(RawData),
 
     #[vfb(key = 1505)]
@@ -832,4 +832,12 @@ pub enum VfbEntry {
     #[vfb(key = 2031)]
     #[serde(rename = "Glyph Guide Properties")]
     GuideProperties(GuideProperties),
+
+    #[vfb(key = 5)]
+    #[serde(rename = "block_font_end")]
+    BlockFontEnd(RawData),
+
+    #[vfb(key = 2)]
+    #[serde(rename = "block_file_data_end")]
+    BlockFileDataEnd(RawData),
 }
