@@ -24,6 +24,8 @@ pub enum VfbError {
     InvalidPathCommand(u8),
     #[error("Unknown entry key: 0x{key:02x}")]
     UnknownEntryKey { key: u16 },
+    #[error("{0}")]
+    Custom(String),
 }
 
 /// A helper context for building error messages

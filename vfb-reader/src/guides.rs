@@ -28,34 +28,30 @@ pub struct GuideProperty {
 
 impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
     pub fn read_guides(&mut self) -> Result<Guides, Report<VfbError>> {
-        let horizontal_count = self.read_value()? as usize;
-        let mut horizontal = Vec::with_capacity(horizontal_count);
-        for _ in 0..horizontal_count {
-            let mut this_guide = Vec::with_capacity(self.number_of_masters);
-            for _ in 0..self.number_of_masters {
-                let position = self.read_value()?;
-                let angle = (self.read_value()? as f32).atan2(10000.0).to_degrees();
-                this_guide.push(Guide { position, angle });
-            }
-            horizontal.push(this_guide);
-        }
-
-        let vertical_count = self.read_value()? as usize;
-        let mut vertical = Vec::with_capacity(vertical_count);
-        for _ in 0..vertical_count {
-            let mut this_guide = Vec::with_capacity(self.number_of_masters);
-            for _ in 0..self.number_of_masters {
-                let position = self.read_value()?;
-                let angle = (self.read_value()? as f32).atan2(10000.0).to_degrees();
-                this_guide.push(Guide { position, angle });
-            }
-            vertical.push(this_guide);
-        }
-
+        // Ignore negatives. Python did so accidentally because it used `range()`,
+        // but there are genuinely negative guide counts in Fontlab VFB files...
+        let horizontal_count: i32 = self.read_value()?.max(0);
+        let horizontal = self.read_guide_list(horizontal_count)?;
+        let vertical_count = self.read_value()?.max(0);
+        let vertical = self.read_guide_list(vertical_count)?;
         Ok(Guides {
             horizontal,
             vertical,
         })
+    }
+
+    fn read_guide_list(&mut self, count: i32) -> Result<Vec<Vec<Guide>>, Report<VfbError>> {
+        let mut guides = Vec::with_capacity(count as usize);
+        for _ in 0..count {
+            let mut this_guide = Vec::with_capacity(self.number_of_masters);
+            for _ in 0..self.number_of_masters {
+                let position = self.read_value()?;
+                let angle = (self.read_value()? as f32).atan2(10000.0).to_degrees();
+                this_guide.push(Guide { position, angle });
+            }
+            guides.push(this_guide);
+        }
+        Ok(guides)
     }
 }
 
@@ -112,5 +108,48 @@ impl Guide {
     /// Get the guide angle in degrees
     pub fn angle(&self) -> f32 {
         self.angle
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::buffer::{EntryReader, ReadExt, VfbReader};
+    use std::io::Cursor;
+
+    /// The guide payload for `S` in `resources/Arvo_ita_MM_54_b_sorce.vfb`.
+    /// FontLab wrote a negative horizontal count (which `vfbLib` treats as
+    /// zero) followed by three valid vertical guides; we must parse both.
+    #[test]
+    fn negative_horizontal_count_is_treated_as_zero() {
+        let bytes = [
+            0xff, 0xff, 0xce, 0xbf, 0xfb, // horizontal count: -3227653
+            0x8e, // vertical count: 3
+            0xf8, 0xcb, 0x8b, // master 0: 567
+            0xf8, 0x79, 0x8b, // master 1: 485
+            0xf9, 0x84, 0x8b, // master 0: 752
+            0xf9, 0x31, 0x8b, // master 1: 669
+            0xf8, 0x0d, 0x8b, // master 0: 377
+            0xf7, 0xba, 0x8b, // master 1: 294
+            0x0f, // end of glyph entry
+        ];
+        let size = bytes.len() as u64;
+        let mut reader = VfbReader::new(Cursor::new(bytes));
+        reader.number_of_masters = 2;
+        let mut entry = EntryReader::new(&mut reader, size);
+
+        let guides = entry.read_guides().expect("guides should parse");
+
+        assert!(guides.horizontal().is_empty());
+        let vertical: Vec<Vec<i32>> = guides
+            .vertical()
+            .iter()
+            .map(|guide| guide.iter().map(|g| g.position()).collect())
+            .collect();
+        assert_eq!(
+            vertical,
+            vec![vec![567, 485], vec![752, 669], vec![377, 294]]
+        );
+        // 5-byte count + 1-byte count + 3 guides * 2 masters * 2 values.
+        assert_eq!(entry.stream_position().unwrap(), 24);
     }
 }
