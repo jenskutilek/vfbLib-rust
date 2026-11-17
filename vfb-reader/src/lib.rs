@@ -13,9 +13,10 @@ use serde::Serialize;
 use std::{fs::File, path::PathBuf};
 
 use crate::buffer::{ReadExt, VfbReader};
-pub use entries::VfbEntry;
+pub use entries::{PostScriptInfo, VfbEntry};
 pub use error::{ReadContext, Report, VfbError}; // Re-export error types
-pub use glyph::{GlyphEntry, Node};
+pub use glyph::{Anchor, AnchorsSupplemental, GdefAnchor, GlyphEntry, GlyphGDEF, Node};
+pub use guides::{Guide, GuideProperty, Guides};
 pub use truetype::{TrueTypeOptions, TrueTypeValue};
 
 /// The main struct representing the VFB

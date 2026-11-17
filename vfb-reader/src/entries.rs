@@ -1,7 +1,7 @@
 use crate::{
     buffer::{EntryReader, ReadExt},
     error::VfbError,
-    glyph::{Anchor, AnchorsSupplemental, GlyphEntry},
+    glyph::{Anchor, AnchorsSupplemental, GlyphEntry, GlyphGDEF, Node},
     guides::Guides,
     names::NameRecord,
     postscript::{PostScriptGlobalHintingOptions, PostScriptGlyphHintingOptions},
@@ -38,9 +38,9 @@ pub type OpenTypeKerningClassFlags = RawData;
 pub type AnisotropicInterpolations = RawData;
 pub type AxisMappingsCount = RawData;
 pub type AxisMappings = RawData;
+pub type Mask = Vec<Node>;
 pub type PrimaryInstances = RawData;
 pub type GlobalMask = RawData;
-pub type Mask = RawData;
 pub type MaskMetrics = RawData;
 pub type MaskMetricsMM = RawData;
 pub type Link = RawData;
@@ -48,12 +48,59 @@ pub type BackgroundBitmap = RawData;
 pub type GlyphBitmaps = RawData;
 pub type EncodedValueList = RawData;
 pub type GlyphSketch = RawData;
-pub type GlyphGDEF = RawData;
-pub type GuideProperties = RawData;
+pub type GuideProperties = Vec<crate::guides::GuideProperty>;
 pub type MappingMode = RawData;
 pub type FL3Type1410 = RawData;
 pub type MasterLocation = RawData;
-pub type PostScriptInfo = RawData;
+
+/// Per-master PostScript information, including design-time vertical metrics.
+#[derive(Serialize, Debug, Default)]
+pub struct PostScriptInfo {
+    pub ascender: i32,
+    pub descender: i32,
+    pub x_height: i32,
+    pub cap_height: i32,
+}
+
+impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
+    pub fn read_postscript_info(&mut self) -> Result<PostScriptInfo, Report<VfbError>> {
+        // Font matrix
+        for _ in 0..6 {
+            self.read_f64()?;
+        }
+        let _force_bold = self.read_i32()?;
+        // blue_values, other_blues, family_blues, family_other_blues
+        for _ in 0..(14 + 10 + 14 + 10) {
+            self.read_i32()?;
+        }
+        let _blue_scale = self.read_f64()?;
+        // blue_shift, blue_fuzz, std_hw, std_vw
+        for _ in 0..4 {
+            self.read_i32()?;
+        }
+        // stem_snap_h and stem_snap_v
+        for _ in 0..24 {
+            self.read_i32()?;
+        }
+        // bounding box
+        for _ in 0..4 {
+            self.read_i16()?;
+        }
+        // adv_width_min, adv_width_max, adv_width_avg
+        for _ in 0..3 {
+            self.read_i32()?;
+        }
+        let info = PostScriptInfo {
+            ascender: self.read_i32()?,
+            descender: self.read_i32()?,
+            x_height: self.read_i32()?,
+            cap_height: self.read_i32()?,
+        };
+        // Ignore any trailing private data but keep the stream aligned.
+        let _ = self.read_bytes_remainder()?;
+        Ok(info)
+    }
+}
 
 impl Serialize for RawData {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -776,7 +823,7 @@ pub enum VfbEntry {
     /// Global guide positions and angles.
     GlobalGuides(Guides),
 
-    #[vfb(key = 1296)]
+    #[vfb(key = 1296, reader = "read_guide_properties")]
     #[serde(rename = "Global Guide Properties")]
     /// Properties of global guides.
     GlobalGuideProperties(GuideProperties),
@@ -819,7 +866,7 @@ pub enum VfbEntry {
     #[serde(rename = "Master Location")]
     MasterLocation(MasterLocation),
 
-    #[vfb(key = 1536)]
+    #[vfb(key = 1536, reader = "read_postscript_info")]
     #[serde(rename = "PostScript Info")]
     /// The PostScript font info, one per master.
     PostScriptInfo(PostScriptInfo),
@@ -924,7 +971,7 @@ pub enum VfbEntry {
     /// The PostScript hinting options for a glyph.
     HintingOptions(PostScriptGlyphHintingOptions),
 
-    #[vfb(key = 2009)]
+    #[vfb(key = 2009, reader = "read_mask")]
     #[serde(rename = "mask")]
     /// The mask (background) layer of a glyph.
     Mask(Mask),
@@ -954,7 +1001,7 @@ pub enum VfbEntry {
     /// The Unicode codepoints > 0xFFFF of a glyph
     UnicodesNonBmp(Vec<u32>),
 
-    #[vfb(key = 2018)]
+    #[vfb(key = 2018, reader = "read_gdef")]
     #[serde(rename = "Glyph GDEF Data")]
     /// GDEF data for a glyph.
     GdefData(GlyphGDEF),
@@ -969,7 +1016,7 @@ pub enum VfbEntry {
     /// Multiple master anchor data for a glyph.
     AnchorsMm(Vec<Vec<Anchor>>),
 
-    #[vfb(key = 2031)]
+    #[vfb(key = 2031, reader = "read_guide_properties")]
     #[serde(rename = "Glyph Guide Properties")]
     /// Properties of glyph-level guides
     GuideProperties(GuideProperties),
