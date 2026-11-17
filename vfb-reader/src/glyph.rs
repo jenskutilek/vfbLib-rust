@@ -302,8 +302,10 @@ impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
             self.stream_position().unwrap()
         );
         let mut nodes = vec![];
-        let mut cur_pos_x = 0; // Wait, is this relative coordinate per-master?
-        let mut cur_pos_y = 0;
+        // Node coordinates are stored as deltas from the previous point *for
+        // the same master*. Each master therefore needs its own current
+        // position, otherwise the masters contaminate one another.
+        let mut cur_pos = vec![(0i32, 0i32); number_of_masters];
         for _ in 0..number_of_nodes {
             let byte = self.read_u8()?;
             log::trace!("Path node byte: {:08b}", byte);
@@ -314,11 +316,11 @@ impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
             // Each node has:
             // - an end point, which is an (x, y) coordinate per master
             let mut points = vec![];
-            for _ in 0..number_of_masters {
+            for pos in cur_pos.iter_mut() {
                 let (x_delta, y_delta) = (self.read_value()?, self.read_value()?);
-                cur_pos_x += x_delta;
-                cur_pos_y += y_delta;
-                points.push((cur_pos_x, cur_pos_y));
+                pos.0 += x_delta;
+                pos.1 += y_delta;
+                points.push(*pos);
             }
             match path_command {
                 PathCommand::Move => {
@@ -336,17 +338,17 @@ impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
                 PathCommand::Curve => {
                     let mut c1_points = vec![];
                     let mut c2_points = vec![];
-                    for _ in 0..number_of_masters {
+                    for pos in cur_pos.iter_mut() {
                         let (x_delta, y_delta) = (self.read_value()?, self.read_value()?);
-                        cur_pos_x += x_delta;
-                        cur_pos_y += y_delta;
-                        c1_points.push((cur_pos_x, cur_pos_y));
+                        pos.0 += x_delta;
+                        pos.1 += y_delta;
+                        c1_points.push(*pos);
                     }
-                    for _ in 0..number_of_masters {
+                    for pos in cur_pos.iter_mut() {
                         let (x_delta, y_delta) = (self.read_value()?, self.read_value()?);
-                        cur_pos_x += x_delta;
-                        cur_pos_y += y_delta;
-                        c2_points.push((cur_pos_x, cur_pos_y));
+                        pos.0 += x_delta;
+                        pos.1 += y_delta;
+                        c2_points.push(*pos);
                     }
                     nodes.push(Node::Curve {
                         coords: points,
