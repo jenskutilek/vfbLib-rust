@@ -132,29 +132,32 @@ pub(crate) trait ReadExt {
     //     }
     // }
 
+    /// Decode bytes using the file's string encoding (UTF-8 with a
+    /// Windows-1252 fallback unless the header declared an older encoding).
+    fn decode_string(&self, buf: &[u8]) -> String {
+        match self.string_encoding() {
+            2 => MACINTOSH.decode(buf).0.to_string(),
+            1 => WINDOWS_1252.decode(buf).0.to_string(),
+            _ => match std::str::from_utf8(buf) {
+                Ok(s) => s.to_string(),
+                Err(_) => WINDOWS_1252.decode(buf).0.to_string(),
+            },
+        }
+    }
+
+    /// Read a string whose length has already been read.
+    fn read_str_of_len(&mut self, len: u64) -> Result<String, Report<VfbError>> {
+        let buf = self.read_bytes(len)?;
+        Ok(self.decode_string(&buf))
+    }
+
     /// Read the length of a string from a buffer and then read the string
     fn read_str_with_len(&mut self) -> Result<String, Report<VfbError>> {
         let len = self.read_value()?;
         let buf = self.read_bytes(len as u64)?;
-        match self.string_encoding() {
-            2 => {
-                let (s, _, _) = MACINTOSH.decode(&buf);
-                log::trace!("Read a MacRoman string of length {}: {}", len, s);
-                Ok(s.to_string())
-            }
-            1 => {
-                let (s, _, _) = WINDOWS_1252.decode(&buf);
-                log::trace!("Read a Windows-1252 string of length {}: {}", len, s);
-                Ok(s.to_string())
-            }
-            _ => {
-                if let Ok(s) = std::str::from_utf8(&buf) {
-                    return Ok(s.to_string());
-                }
-                let (s, _, _) = WINDOWS_1252.decode(&buf);
-                Ok(s.to_string())
-            }
-        }
+        let s = self.decode_string(&buf);
+        log::trace!("Read a string of length {}: {}", len, s);
+        Ok(s)
     }
 
     /// Read the remaining bytes from a buffer and return them as a string
