@@ -1,5 +1,13 @@
 # Changes
 
+## v0.1.7
+
+- Fix an issue with string decoding; fallback to Windows-1252 for old pre-Unicode VFBs.
+- Parse postscript info, kerning classes, masks, guide properties, GDEF
+- Guide counts can be negative, handle that case
+- Coordinate deltas need a per-master cursor
+- Remove unused phf crate
+
 ## v0.1.6
 
 - Make the `truetype` module public (#18)
