@@ -34,7 +34,15 @@ pub type TrueTypeZoneDeltas = RawData;
 pub type CustomCmap = RawData;
 pub type Pclt = RawData;
 pub type OpenTypeMetricsClassFlags = RawData;
-pub type OpenTypeKerningClassFlags = RawData;
+
+/// A kerning class and its side flags (first/second).
+#[derive(Serialize, Debug)]
+pub struct KerningClassFlag {
+    pub name: String,
+    pub flags: (i32, i32),
+}
+
+pub type OpenTypeKerningClassFlags = Vec<KerningClassFlag>;
 pub type AnisotropicInterpolations = RawData;
 pub type AxisMappingsCount = RawData;
 pub type AxisMappings = RawData;
@@ -99,6 +107,23 @@ impl<R: std::io::Read + std::io::Seek> EntryReader<'_, R> {
         // Ignore any trailing private data but keep the stream aligned.
         let _ = self.read_bytes_remainder()?;
         Ok(info)
+    }
+
+    pub fn read_class_flags(&mut self) -> Result<OpenTypeKerningClassFlags, Report<VfbError>> {
+        let count = self.read_value()? as usize;
+        let mut flags = Vec::with_capacity(count);
+        for _ in 0..count {
+            let name_length = self.read_value()?;
+            let name = self.read_str_of_len(name_length as u64)?;
+            let flag1 = self.read_value()?;
+            let flag2 = self.read_value()?;
+            flags.push(KerningClassFlag {
+                name,
+                flags: (flag1, flag2),
+            });
+        }
+        let _ = self.read_bytes_remainder()?;
+        Ok(flags)
     }
 }
 
@@ -764,7 +789,7 @@ pub enum VfbEntry {
     /// Internal flags for metrics classes.
     MetricsClassFlags(OpenTypeMetricsClassFlags),
 
-    #[vfb(key = 2026)]
+    #[vfb(key = 2026, reader = "read_class_flags")]
     #[serde(rename = "OpenType Kerning Class Flags")]
     /// Internal flags for OpenType kerning classes.
     KerningClassFlags(OpenTypeKerningClassFlags),
@@ -1030,4 +1055,23 @@ pub enum VfbEntry {
     #[serde(rename = "block_file_data_end")]
     /// An empty entry marking the end of file data.
     BlockFileDataEnd(RawData),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::buffer::VfbReader;
+    use std::io::Cursor;
+
+    #[test]
+    fn reads_kerning_class_flags() {
+        // 1 class: name "AB", side flags (1024 = first, 0).
+        let bytes = [0x8c, 0x8d, b'A', b'B', 0xfa, 0x94, 0x8b];
+        let mut reader = VfbReader::new(Cursor::new(bytes));
+        let mut entry = EntryReader::new(&mut reader, bytes.len() as u64);
+        let flags = entry.read_class_flags().expect("failed to read flags");
+        assert_eq!(flags.len(), 1);
+        assert_eq!(flags[0].name, "AB");
+        assert_eq!(flags[0].flags, (1 << 10, 0));
+    }
 }
